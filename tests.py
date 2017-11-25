@@ -3,6 +3,7 @@
 import unittest
 from logic import *
 import child_classes
+import levelCreator
 
 
 class GoRightController(PlayerController):
@@ -220,6 +221,41 @@ class OtherTests(unittest.TestCase):
         self.assertEqual(2, len(animations))
         self.assertIn(Player, map(type, (anim.object for anim in animations)))
         self.assertIn(Block, map(type, (anim.object for anim in animations)))
+
+    def test_level_creator(self):
+        legend = {
+            '#': Block,
+            '*': lambda : Player(GoRightController()),
+            '1': Monster
+        }
+        level_creator = levelCreator.LevelCreator(legend)
+        level = [
+            "# # # # # # # # # # ",
+            "1#1#1#1#1#1#1#1#1#1#",
+            "* * * * * * * * * * "
+        ]
+        game_map = level_creator.create_level(level)
+        for i in range(10):
+            self.assertEqual(Block, type(game_map.get_map_objects(
+                Point(i * CELL_WIDTH * 2, 0)
+            )[0]))
+            self.assertEqual(0, len(game_map.get_map_objects(
+                Point(i * CELL_WIDTH * 2 + CELL_WIDTH, 0)
+            )))
+            self.assertEqual(Monster, type(game_map.get_map_objects(
+                Point(i * CELL_WIDTH * 2, CELL_WIDTH)
+            )[0]))
+            self.assertEqual(Block, type(game_map.get_map_objects(
+                Point(i * CELL_WIDTH * 2 + CELL_WIDTH, CELL_WIDTH)
+            )[0]))
+            self.assertEqual(Player, type(game_map.get_map_objects(
+                Point(i * CELL_WIDTH * 2, CELL_WIDTH * 2)
+            )[0]))
+            self.assertEqual(0, len(game_map.get_map_objects(
+                Point(i * CELL_WIDTH * 2 + CELL_WIDTH, CELL_WIDTH * 2)
+            )))
+
+
 
 
 class MonsterTypesTest(unittest.TestCase):
