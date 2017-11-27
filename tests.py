@@ -3,7 +3,7 @@
 import unittest
 from logic import *
 import child_classes
-import levelCreator
+import level_creator
 
 
 class GoRightController(PlayerController):
@@ -222,19 +222,24 @@ class OtherTests(unittest.TestCase):
         self.assertIn(Player, map(type, (anim.object for anim in animations)))
         self.assertIn(Block, map(type, (anim.object for anim in animations)))
 
+    def test_player_sets_controller(self):
+        controller = GoRightController()
+        player = Player(controller)
+        self.assertEqual(player, controller._player)
+
     def test_level_creator(self):
         legend = {
-            '#': Block,
-            '*': lambda : Player(GoRightController()),
-            '1': Monster
+            '#': lambda : (Block(),),
+            '*': lambda : (Player(GoRightController()),),
+            '1': lambda : (Monster(),)
         }
-        level_creator = levelCreator.LevelCreator(legend)
+        level_creator_ = level_creator.LevelCreator(legend)
         level = [
             "# # # # # # # # # # ",
             "1#1#1#1#1#1#1#1#1#1#",
             "* * * * * * * * * * "
         ]
-        game_map = level_creator.create_level(level)
+        game_map = level_creator_.create_level(level)
         for i in range(10):
             self.assertEqual(Block, type(game_map.get_map_objects(
                 Point(i * CELL_WIDTH * 2, 0)
@@ -278,12 +283,12 @@ class TestChildClasses(unittest.TestCase):
 
     def test_clever_monster(self):
         legend = {
-            '*': lambda : Player(GoRightController()),
-            '#': Block,
-            '0': child_classes.CleverMonster
+            '*': lambda : (Player(GoRightController()),),
+            '#': lambda : (Block(),),
+            '0': lambda : (child_classes.CleverMonster(),)
         }
-        level_creator = levelCreator.LevelCreator(legend)
-        self.map = level_creator.create_level([
+        level_creator_ = level_creator.LevelCreator(legend)
+        self.map = level_creator_.create_level([
             "#####",
             "#0  #",
             "# # #",
@@ -321,7 +326,7 @@ class TestChildClasses(unittest.TestCase):
         self.game.make_turn()
         self.assertFalse(stone_block.is_dead)
         self.game.map.add_map_object(child_classes.HighPoweredExplosion(100),
-                                Point(0, 0))
+                                     Point(0, 0))
         self.game.make_turn()
         self.assertTrue(stone_block.is_dead)
 
@@ -353,6 +358,7 @@ class TestChildClasses(unittest.TestCase):
         self.assertFalse(self.player.is_dead)
         self.game.make_turn()
         self.assertTrue(self.player.is_dead)
+
 
 
 if __name__ == "__main__":

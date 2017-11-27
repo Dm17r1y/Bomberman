@@ -2,12 +2,13 @@
 
 from PyQt5 import QtWidgets, QtGui, QtCore
 import sys
-from logic import CELL_WIDTH
 import logic
-from point import Direction
-from controller import *
+import os
+from level_creator import LevelCreator
+from child_classes import *
 
-TIMER_DELAY_MILLISECONDS = 20
+RANDOM_LEVEL_SIZE = 10
+TIMER_DELAY_MILLISECONDS = 100
 
 class GameController(GameController):
     pass
@@ -39,10 +40,10 @@ class PlayerController(PlayerController):
 
 class BombermanWindow(QtWidgets.QWidget):
 
-    def __init__(self):
+    def __init__(self, level):
         super().__init__()
         self.view = BombermanView(self)
-        self.initialize_game()
+        self.initialize_game(level)
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.make_turn)
         self.timer.start(TIMER_DELAY_MILLISECONDS)
@@ -53,12 +54,27 @@ class BombermanWindow(QtWidgets.QWidget):
         animations = self.game.make_turn()
         self.view.animate(animations)
 
-    def initialize_game(self):
-        game_map = logic.Map()
-        self.controller = PlayerController(200, 5)
+    def initialize_game(self, level):
+
+        legend = {
+            "#": lambda : (UnbreakableBlock(),),
+            "H": lambda : (DestroyableBlock(),),
+            "@": lambda : (SimpleMonster(),),
+            "h": lambda : (LongExplosionBonus(), DestroyableBlock()),
+            "I": lambda : (ImmuneBonus(), DestroyableBlock())
+        }
+
+        level_creator = LevelCreator(legend)
+        if level == "Random":
+            game_map = level_creator.create_random_level(RANDOM_LEVEL_SIZE,
+                                                         RANDOM_LEVEL_SIZE)
+        else:
+            with open(os.path.join('levels', level)) as f:
+                level_ = f.read().split('\n')
+            game_map = level_creator.create_level(level_)
+        self.controller = PlayerController()
         player = logic.Player(self.controller)
-        game_map.add_map_object(player, logic.Point(0, 0))
-        game_map.add_map_object(logic.Block(), logic.Point(32, 32))
+        game_map.add_map_object(player, Point(CELL_WIDTH, CELL_WIDTH))
         self.game = logic.Game(game_map, GameController(), player)
 
     def keyPressEvent(self, key_event):
@@ -106,16 +122,22 @@ class BombermanView(QtWidgets.QGraphicsView):
         explosion_horizontal_image = Image("images/explosion_horizontal.png")
         monster_image = Image("images/monster.png")
 
-        self.images = {logic.Block: block_stone_image,
-                       logic.Player: player_image,
-                       logic.Bomb: bomb_image,
-                       logic.Monster: monster_image}
+        self.images = {
+            Block: block_stone_image,
+            Player: player_image,
+            Bomb: bomb_image,
+            Monster: monster_image,
+            UnbreakableBlock: block_stone_image,
+            SimpleBomb: bomb_image,
+            SimpleMonster: monster_image,
+            DestroyableBlock: block_brick_image
+        }
 
         self.explosion_images = {
-            logic.Direction.Up: explosion_down_image,
-            logic.Direction.Down: explosion_up_image,
-            logic.Direction.Left: explosion_left_image,
-            logic.Direction.Right: explosion_right_image
+            Direction.Up: explosion_down_image,
+            Direction.Down: explosion_up_image,
+            Direction.Left: explosion_left_image,
+            Direction.Right: explosion_right_image
         }
         self.explosion_vertical_image = explosion_vertical_image
         self.explosion_horizontal_image = explosion_horizontal_image
@@ -196,11 +218,16 @@ class MainWindow(QtWidgets.QWidget):
         start_button = QtWidgets.QPushButton("Start")
         start_button.clicked.connect(self.start)
         layout.addWidget(start_button)
+
+        levels = os.listdir('levels') + ["Random"]
+        self.combo_box = QtWidgets.QComboBox()
+        self.combo_box.addItems(levels)
+        layout.addWidget(self.combo_box)
         self.setLayout(layout)
         self.show()
 
     def start(self):
-        self.window = BombermanWindow()
+        self.window = BombermanWindow(self.combo_box.currentText())
 
 
 def main():

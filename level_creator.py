@@ -14,9 +14,13 @@ class LevelCreator:
         for y, line in enumerate(level):
             for x, char in enumerate(line):
                 if char in self.legend:
-                    obj = self.legend[char]()
-                    game_map.add_map_object(obj, Point(x * CELL_WIDTH,
-                                                       y * CELL_WIDTH))
+                    objects = self.legend[char]()
+                    for obj in objects:
+                        game_map.add_map_object(obj, Point(x * CELL_WIDTH,
+                                                           y * CELL_WIDTH))
+                elif char != " ":
+                    raise Exception("Cell not in legend: " + char)
+
         return game_map
 
     def create_random_level(self, map_width, map_height):
@@ -64,6 +68,6 @@ class LevelCreator:
 
     def _add_random_object(self, game_map, coordinates):
         if random.randint(0, 1) == 0:
-            game_map.add_object(DestroyableBlock(), coordinates)
+            game_map.add_map_object(DestroyableBlock(), coordinates)
         elif random.randint(0, 3) == 0:
-            game_map.add_object(SimpleMonster(), coordinates)
+            game_map.add_map_object(SimpleMonster(), coordinates)

@@ -6,9 +6,9 @@ from controller import *
 
 
 CELL_WIDTH = 16
-EXPLOSION_LIVE = 100
-TIME_EXPLOSION_DELAY = 1000
-START_EXPLOSION_RADIUS = 1
+EXPLOSION_LIVE = 10
+TIME_EXPLOSION_DELAY = 100
+START_EXPLOSION_RADIUS = 2
 CORNER_SIZE = 8
 BUFF_TIME = 10000
 
@@ -249,6 +249,7 @@ class Player(MapObject):
     def __init__(self, controller):
         super().__init__()
         self._controller = controller
+        controller.set_player(self)
         self._last_bomb = None
         self._bomb_creator = BombCreator()
         self._buffs = []
