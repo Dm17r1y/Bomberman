@@ -4,6 +4,8 @@ from logic import *
 import random
 
 
+LONG_RANGE_EXPLOSION_RADIUS = 5
+
 class SimpleMonster(Monster):
 
     def __init__(self):
@@ -135,12 +137,36 @@ class HighPoweredExplosion(ExplosionBlock):
 
 
 class HighBombBonus(Bonus):
-    pass
+
+    def add_bonus(self, player):
+        player.set_bomb_type(HighPowerBomb)
 
 
 class LongExplosionBonus(Bonus):
-    pass
+
+    def add_bonus(self, player):
+        player.add_buff(LongRangeExplosionBuff())
 
 
 class ImmuneBonus(Bonus):
-    pass
+
+    def add_bonus(self, player):
+        player.add_buff(ImmuneBuff())
+
+
+class ImmuneBuff(Buff):
+
+    def start(self, player):
+        player.immune = True
+
+    def end(self, player):
+        player.immune = False
+
+
+class LongRangeExplosionBuff(Buff):
+
+    def start(self, player):
+        player.set_bomb_radius(LONG_RANGE_EXPLOSION_RADIUS)
+
+    def end(self, player):
+        player.set_bomb_radius(START_EXPLOSION_RADIUS)

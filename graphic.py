@@ -14,13 +14,11 @@ class GameController(GameController):
 
 class PlayerController(PlayerController):
 
-    def __init__(self, bomb_delay, explosion_radius):
+    def __init__(self):
         self._key = None
-        self._bomb_delay = bomb_delay
-        self._explosion_radius = explosion_radius
 
     def select_action(self):
-        bomb = logic.Bomb(self._bomb_delay, self._explosion_radius)
+        bomb = self._player.get_bomb()
         actions = {
             QtCore.Qt.Key_W: logic.Move(Direction.Down),
             QtCore.Qt.Key_S: logic.Move(Direction.Up),

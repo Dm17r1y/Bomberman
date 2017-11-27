@@ -9,6 +9,9 @@ class PlayerController(abc.ABC):
     def select_action(self):
         pass
 
+    def set_player(self, player):
+        self._player = player
+
 
 class GameController(abc.ABC):
     pass

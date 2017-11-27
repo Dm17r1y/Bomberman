@@ -332,9 +332,27 @@ class TestChildClasses(unittest.TestCase):
         self.game.make_turn()
         self.assertTrue(brick_block.is_dead)
 
+    def test_high_explosion_bonus(self):
+        self.assertEqual(Bomb, type(self.player.get_bomb()))
+        self.player.set_bomb_type(child_classes.SimpleBomb)
+        self.assertEqual(child_classes.SimpleBomb,
+                         type(self.player.get_bomb()))
 
-class BonusTypesTest(unittest.TestCase):
-    pass
+    def test_long_explosion_bonus(self):
+        self.assertEqual(1, self.player.get_bomb()._explosion_radius)
+        self.player.set_bomb_radius(10)
+        self.assertEqual(10, self.player.get_bomb()._explosion_radius)
+
+    def test_immune_buff(self):
+        self.map.add_map_object(self.player, Point(0, 0))
+        immune_buff = child_classes.ImmuneBuff()
+        immune_buff.time = 2
+        self.player.add_buff(immune_buff)
+        self.map.add_map_object(Monster(), Point(0, 0))
+        self.game.make_turn()
+        self.assertFalse(self.player.is_dead)
+        self.game.make_turn()
+        self.assertTrue(self.player.is_dead)
 
 
 if __name__ == "__main__":

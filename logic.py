@@ -7,7 +7,10 @@ from controller import *
 
 CELL_WIDTH = 16
 EXPLOSION_LIVE = 100
+TIME_EXPLOSION_DELAY = 1000
+START_EXPLOSION_RADIUS = 1
 CORNER_SIZE = 8
+BUFF_TIME = 10000
 
 
 class OutOfMapRangeException(Exception):
@@ -226,18 +229,55 @@ class MapObject:
     def is_dead(self):
         return self._is_dead
 
+class BombCreator:
+
+    def __init__(self):
+        self._radius = START_EXPLOSION_RADIUS
+        self._bomb_type = Bomb
+
+    def set_radius(self, radius):
+        self._radius = radius
+
+    def set_bomb_type(self, bomb_type):
+        self._bomb_type = bomb_type
+
+    def get_bomb(self):
+        return self._bomb_type(TIME_EXPLOSION_DELAY, self._radius)
 
 class Player(MapObject):
 
-    def __init__(self, controller: 'PlayerController'):
+    def __init__(self, controller):
         super().__init__()
         self._controller = controller
         self._last_bomb = None
+        self._bomb_creator = BombCreator()
+        self._buffs = []
+        self.immune = False
+
+    def get_bomb(self):
+        return self._bomb_creator.get_bomb()
+
+    def set_bomb_type(self, bomb_type):
+        self._bomb_creator.set_bomb_type(bomb_type)
+
+    def set_bomb_radius(self, radius):
+        self._bomb_creator.set_radius(radius)
 
     def set_last_bomb(self, bomb):
         self._last_bomb = bomb
 
+    def add_buff(self, buff):
+        buff.start(self)
+        self._buffs.append(buff)
+
     def move(self, coordinates: 'Point', old_map: 'Map'):
+
+        for buff in self._buffs:
+            buff.time -= 1
+            if buff.time == 0:
+                buff.end(self)
+
+        self._buffs = [buff for buff in self._buffs if buff.time > 0]
         return self._controller.select_action()
 
     def can_move(self, collisions, old_collisions):
@@ -251,7 +291,7 @@ class Player(MapObject):
         object_types = [Monster, ExplosionBlock]
         for object in other_objects:
             for type_ in object_types:
-                if isinstance(object, type_):
+                if isinstance(object, type_) and not self.immune:
                     self._is_dead = True
 
 
@@ -299,6 +339,23 @@ class ExplosionBlock(MapObject):
 class Bonus(MapObject):
 
     def solve_collision(self, other_objects):
-        if Player in map(type, other_objects):
-            self._is_dead = True
+        for object in other_objects:
+            if isinstance(object, Player):
+                self._is_dead = True
+                self.add_bonus(object)
+
+    def add_bonus(self, player):
+        pass
+
+
+class Buff:
+
+    def __init__(self):
+        self.time = BUFF_TIME
+
+    def start(self, player):
+        pass
+
+    def end(self, player):
+        pass
 
