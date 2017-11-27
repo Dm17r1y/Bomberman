@@ -258,12 +258,12 @@ class OtherTests(unittest.TestCase):
 
 
 
-class MonsterTypesTest(unittest.TestCase):
+class TestChildClasses(unittest.TestCase):
 
     def setUp(self):
         self.map = Map()
-        player = Player(GoRightController())
-        self.game = Game(self.map, GameController(), player)
+        self.player = Player(GoRightController())
+        self.game = Game(self.map, GameController(), self.player)
 
     def test_simple_monster(self):
         monster = child_classes.SimpleMonster()
@@ -276,9 +276,61 @@ class MonsterTypesTest(unittest.TestCase):
                          .get_map_objects(Point(CELL_WIDTH + 1, CELL_WIDTH)))
         self.assertEqual(Direction.Right, monster.direction)
 
+    def test_clever_monster(self):
+        legend = {
+            '*': lambda : Player(GoRightController()),
+            '#': Block,
+            '0': child_classes.CleverMonster
+        }
+        level_creator = levelCreator.LevelCreator(legend)
+        self.map = level_creator.create_level([
+            "#####",
+            "#0  #",
+            "# # #",
+            "###*#"
+        ])
+        self.game = Game(self.map, GameController(),
+                         Player(GoRightController()))
+        self.game.make_turn()
+        self.assertEqual(child_classes.CleverMonster,
+                         type(self.game.map.get_map_objects(
+                             Point(CELL_WIDTH + 1, CELL_WIDTH)
+                         )[0]))
 
-class BombTypesTest(unittest.TestCase):
-    pass
+    def test_new_monsters_kill_player(self):
+        self.map.add_map_object(self.player, Point(0, 0))
+        self.map.add_map_object(child_classes.SimpleMonster(), Point(0, 0))
+        self.game.make_turn()
+        self.assertTrue(self.player.is_dead)
+
+    def test_strong_monster(self):
+        monster = child_classes.StrongMonster()
+        self.map.add_map_object(monster, Point(0, 0))
+        self.map.add_map_object(ExplosionBlock(100), Point(0, 0))
+        self.game.make_turn()
+        self.assertFalse(monster.is_dead)
+        self.game.map.add_map_object(child_classes.HighPoweredExplosion(100),
+                                     Point(0, 0))
+        self.game.make_turn()
+        self.assertTrue(monster.is_dead)
+
+    def test_destroy_stone_block(self):
+        stone_block = child_classes.StoneBlock()
+        self.map.add_map_object(stone_block, Point(0, 0))
+        self.map.add_map_object(ExplosionBlock(100), Point(0, 0))
+        self.game.make_turn()
+        self.assertFalse(stone_block.is_dead)
+        self.game.map.add_map_object(child_classes.HighPoweredExplosion(100),
+                                Point(0, 0))
+        self.game.make_turn()
+        self.assertTrue(stone_block.is_dead)
+
+    def test_destroy_brick_block(self):
+        brick_block = child_classes.DestroyableBlock()
+        self.map.add_map_object(brick_block, Point(0, 0))
+        self.map.add_map_object(ExplosionBlock(100), Point(0, 0))
+        self.game.make_turn()
+        self.assertTrue(brick_block.is_dead)
 
 
 class BonusTypesTest(unittest.TestCase):

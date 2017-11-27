@@ -35,6 +35,8 @@ class Point:
     def __str__(self):
         return "(" + str(self._x) + ", " + str(self._y) + ")"
 
+    def __sub__(self, other):
+        return self + (other * (-1))
 
 class Direction(Enum):
     Up = Point(0, 1)

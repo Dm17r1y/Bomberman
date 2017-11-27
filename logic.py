@@ -35,11 +35,13 @@ class Map:
         else:
             return number + cell_width - modulo
 
+    @staticmethod
+    def round_point(point: Point, cell_width: int):
+        return Point(Map.round(point.x, cell_width),
+                     Map.round(point.y, cell_width))
+
     def add_bomb(self, bomb: 'Bomb', coordinates: 'Point'):
-        self.add_map_object(bomb, Point(
-            Map.round(coordinates.x, CELL_WIDTH),
-            Map.round(coordinates.y, CELL_WIDTH)
-        ))
+        self.add_map_object(bomb, Map.round_point(coordinates, CELL_WIDTH))
 
     def enumerate_all_objects(self):
         for point in self._objects.keys():
@@ -180,7 +182,8 @@ class PutBomb:
 
 class Explose:
 
-    def __init__(self, center: 'Point', radius: int):
+    def __init__(self, explosion_type, center: 'Point', radius: int):
+        self._explosion_type = explosion_type
         self._center = center
         self._radius = radius
 
@@ -195,7 +198,7 @@ class Explose:
                               i * direction.value.x * CELL_WIDTH,
                               coordinates.y +
                               i * direction.value.y * CELL_WIDTH)
-                explosion = ExplosionBlock(EXPLOSION_LIVE)
+                explosion = self._explosion_type(EXPLOSION_LIVE)
                 animations.append(Animation(explosion, point, Direction.Stand))
                 game_map.add_map_object(explosion, point)
                 collisions = old_map.get_collisions(None, point)
@@ -245,17 +248,19 @@ class Player(MapObject):
                        self._last_bomb not in old_collisions)
 
     def solve_collision(self, other_objects: list):
-        objects = [Monster, ExplosionBlock]
-        if any(game_object in map(type, other_objects)
-               for game_object in objects):
-            self._is_dead = True
+        object_types = [Monster, ExplosionBlock]
+        for object in other_objects:
+            for type_ in object_types:
+                if isinstance(object, type_):
+                    self._is_dead = True
 
 
 class Monster(MapObject):
 
     def solve_collision(self, other_objects):
-        if ExplosionBlock in map(type, other_objects):
-            self._is_dead = True
+        for object in other_objects:
+            if isinstance(object, ExplosionBlock):
+                self._is_dead = True
 
 
 class Block(MapObject):
@@ -268,12 +273,14 @@ class Bomb(MapObject):
         super().__init__()
         self._tick_delay = tick_delay
         self._explosion_radius = explosion_radius
+        self._explosion_type = ExplosionBlock
 
     def move(self, coordinates: 'Point', old_map: 'Map'):
         self._tick_delay -= 1
         if self._tick_delay == 0:
             self._is_dead = True
-            return Explose(coordinates, self._explosion_radius)
+            return Explose(self._explosion_type, coordinates,
+                           self._explosion_radius)
         return Move(Direction.Stand)
 
 
