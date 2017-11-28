@@ -6,6 +6,7 @@ import random
 
 LONG_RANGE_EXPLOSION_RADIUS = 5
 
+
 class SimpleMonster(Monster):
 
     def __init__(self):
@@ -14,8 +15,9 @@ class SimpleMonster(Monster):
         self.direction = None
 
     def move(self, coordinates: 'Point', old_map: 'Map'):
-        if self.direction and self._can_move(old_map, coordinates +
-                self.direction.value):
+        if self.direction and self._can_move(old_map,
+                                             coordinates +
+                                             self.direction.value):
             return Move(self.direction)
         directions = [Direction.Up, Direction.Down,
                       Direction.Left, Direction.Right]
@@ -28,23 +30,27 @@ class SimpleMonster(Monster):
         return Move(Direction.Stand)
 
     def can_move(self, collisions, old_collisions):
-        return self._correct_collisions(collisions)
+        return self._correct_collisions_to_move(collisions)
 
     def _can_move(self, game_map, location):
         collisions = game_map.get_collisions(self, location)
-        return self._correct_collisions(collisions)
+        return self._correct_collisions_to_move(collisions)
 
-    def _correct_collisions(self, collisions):
-        for collision in collisions:
-            for type_ in self.object_types:
-                if isinstance(collision, type_):
-                    return False
-        return True
+    def _correct_collisions_to_move(self, collisions):
+        return all(not isinstance(collision, type_)
+                   for collision in collisions
+                   for type_ in self.object_types)
 
 
 class CleverMonster(SimpleMonster):
 
     VISION_RANGE = 10
+
+    def in_vision_range(self, my_coordinates, object_coordinates):
+        return abs(my_coordinates.x - object_coordinates.x) < \
+            self.VISION_RANGE * CELL_WIDTH and \
+            abs(my_coordinates.y - object_coordinates.y) < \
+            self.VISION_RANGE * CELL_WIDTH
 
     def move(self, coordinates: 'Point', old_map: 'Map'):
 
@@ -61,18 +67,15 @@ class CleverMonster(SimpleMonster):
                 collisions = old_map.get_collisions(self, new_node)
 
                 if new_node not in visited and \
-                        abs(coordinates.x - new_node.x) < \
-                                        self.VISION_RANGE * CELL_WIDTH and \
-                        abs(coordinates.y - new_node.y) < \
-                                        self.VISION_RANGE * CELL_WIDTH and \
-                        self._correct_collisions(collisions):
+                        self.in_vision_range(coordinates, new_node) and \
+                        self._correct_collisions_to_move(collisions):
 
                     visited.add(new_node)
                     stack.append(new_node)
                     track[new_node] = node
 
-
-                    if Player in map(type, collisions):
+                    if any(isinstance(collision, Player)
+                           for collision in collisions):
                         player_position = new_node
                         break
         if player_position is None:
@@ -82,43 +85,47 @@ class CleverMonster(SimpleMonster):
             while track[next_point] != rounded_coordinates:
                 next_point = track[next_point]
             direction = next_point - coordinates
-            if direction.x > 0:
-                return Move(Direction.Right)
-            elif direction.x < 0:
-                return Move(Direction.Left)
-            elif direction.y > 0:
-                return Move(Direction.Up)
-            else:
-                return Move(Direction.Down)
+            return self._switch_action(direction)
 
+    def _switch_action(self, direction):
+        if direction.x > 0:
+            return Move(Direction.Right)
+        elif direction.x < 0:
+            return Move(Direction.Left)
+        elif direction.y > 0:
+            return Move(Direction.Up)
+        elif direction.y > 0:
+            return Move(Direction.Down)
+        else:
+            return Move(Direction.Stand)
 
 
 class StrongMonster(SimpleMonster):
 
     def solve_collision(self, other_objects):
-        for object in other_objects:
-            if isinstance(object, HighPoweredExplosion):
-                self._is_dead = True
+        if any(isinstance(object_, HighPoweredExplosion)
+               for object_ in other_objects):
+            self._is_dead = True
 
 
 class UnbreakableBlock(Block):
     pass
 
 
-class StoneBlock(Block):
+class FortifiedBlock(Block):
 
     def solve_collision(self, other_objects):
-        for object in other_objects:
-            if isinstance(object, HighPoweredExplosion):
-                self._is_dead = True
+        if any(isinstance(object_, HighPoweredExplosion)
+               for object_ in other_objects):
+            self._is_dead = True
 
 
 class DestroyableBlock(Block):
 
     def solve_collision(self, other_objects):
-        for object in other_objects:
-            if isinstance(object, ExplosionBlock):
-                self._is_dead = True
+        if any(isinstance(object_, ExplosionBlock)
+               for object_ in other_objects):
+            self._is_dead = True
 
 
 class SimpleBomb(Bomb):

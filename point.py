@@ -38,6 +38,7 @@ class Point:
     def __sub__(self, other):
         return self + (other * (-1))
 
+
 class Direction(Enum):
     Up = Point(0, 1)
     Down = Point(0, -1)

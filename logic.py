@@ -144,7 +144,7 @@ class Move:
         if game_object.can_move(collisions, old_collisions):
             game_map.add_map_object(game_object,
                                     coordinates + self.direction.value)
-            return (Animation(game_object, coordinates, self.direction),)
+            return Animation(game_object, coordinates, self.direction),
         else:
             directions = (Direction.Up, Direction.Down) \
                     if self.direction in (Direction.Right, Direction.Left) \
@@ -152,12 +152,16 @@ class Move:
             for new_direction in directions:
                 for i in range(1, CORNER_SIZE + 1):
                     point = i * new_direction.value + self.direction.value
-                    collisions = old_map.get_collisions(game_object, coordinates + point)
+                    collisions = old_map.get_collisions(game_object,
+                                                        coordinates + point)
                     if game_object.can_move(collisions, old_collisions):
-                        game_map.add_map_object(game_object, coordinates + new_direction.value)
-                        return (Animation(game_object, coordinates, new_direction),)
+                        game_map.add_map_object(game_object,
+                                                coordinates +
+                                                new_direction.value)
+                        return Animation(game_object, coordinates,
+                                         new_direction),
         game_map.add_map_object(game_object, coordinates)
-        return (Animation(game_object, coordinates, Direction.Stand),)
+        return Animation(game_object, coordinates, Direction.Stand),
 
 
 class PutBomb:
@@ -171,15 +175,16 @@ class PutBomb:
 
     def change_game_state(self, game_object, coordinates, old_map, game_map):
         animations = []
-        point = Point(Map.round(coordinates.x, CELL_WIDTH),
-                      Map.round(coordinates.y, CELL_WIDTH))
+        point = Map.round_point(coordinates, CELL_WIDTH)
         collisions = old_map.get_collisions(game_object, point)
         if len(collisions) == 0:
             game_map.add_bomb(self.bomb, coordinates)
             game_object.set_last_bomb(self.bomb)
-            animations.append(Animation(self.bomb, coordinates, Direction.Stand))
+            animations.append(Animation(self.bomb, coordinates,
+                                        Direction.Stand))
         game_map.add_map_object(game_object, coordinates)
-        animations.append(Animation(game_object, coordinates, Direction.Stand))
+        animations.append(Animation(game_object, coordinates,
+                                    Direction.Stand))
         return animations
 
 
@@ -229,6 +234,7 @@ class MapObject:
     def is_dead(self):
         return self._is_dead
 
+
 class BombCreator:
 
     def __init__(self):
@@ -243,6 +249,7 @@ class BombCreator:
 
     def get_bomb(self):
         return self._bomb_type(TIME_EXPLOSION_DELAY, self._radius)
+
 
 class Player(MapObject):
 
@@ -282,29 +289,27 @@ class Player(MapObject):
         return self._controller.select_action()
 
     def can_move(self, collisions, old_collisions):
-        objects = [Block, Bomb]
-        for collision in collisions:
-            if collision is self._last_bomb and \
-                    self._last_bomb in old_collisions:
-                continue
-            if any(isinstance(collision, object) for object in objects):
-                return False
-        return True
+        object_types = [Block, Bomb]
+        return all(not isinstance(object_, type_)
+                   for object_ in collisions
+                   for type_ in object_types
+                   if not (object_ is self._last_bomb and
+                           self._last_bomb in old_collisions))
 
     def solve_collision(self, other_objects: list):
         object_types = [Monster, ExplosionBlock]
-        for object in other_objects:
-            for type_ in object_types:
-                if isinstance(object, type_) and not self.immune:
-                    self._is_dead = True
+        if any(isinstance(object_, type_)
+               for object_ in other_objects
+               for type_ in object_types) and not self.immune:
+            self._is_dead = True
 
 
 class Monster(MapObject):
 
     def solve_collision(self, other_objects):
-        for object in other_objects:
-            if isinstance(object, ExplosionBlock):
-                self._is_dead = True
+        if any(isinstance(object_, ExplosionBlock)
+               for object_ in other_objects):
+            self._is_dead = True
 
 
 class Block(MapObject):
@@ -343,10 +348,9 @@ class ExplosionBlock(MapObject):
 class Bonus(MapObject):
 
     def solve_collision(self, other_objects):
-        for object in other_objects:
-            if isinstance(object, Player):
-                self._is_dead = True
-                self.add_bonus(object)
+        if any(isinstance(object_, Player) for object_ in other_objects):
+            self._is_dead = True
+            self.add_bonus(object)
 
     def add_bonus(self, player):
         pass
@@ -362,4 +366,3 @@ class Buff:
 
     def end(self, player):
         pass
-

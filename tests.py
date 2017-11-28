@@ -229,9 +229,9 @@ class OtherTests(unittest.TestCase):
 
     def test_level_creator(self):
         legend = {
-            '#': lambda : (Block(),),
-            '*': lambda : (Player(GoRightController()),),
-            '1': lambda : (Monster(),)
+            '#': lambda: (Block(),),
+            '*': lambda: (Player(GoRightController()),),
+            '1': lambda: (Monster(),)
         }
         level_creator_ = level_creator.LevelCreator(legend)
         level = [
@@ -261,8 +261,6 @@ class OtherTests(unittest.TestCase):
             )))
 
 
-
-
 class TestChildClasses(unittest.TestCase):
 
     def setUp(self):
@@ -283,9 +281,9 @@ class TestChildClasses(unittest.TestCase):
 
     def test_clever_monster(self):
         legend = {
-            '*': lambda : (Player(GoRightController()),),
-            '#': lambda : (Block(),),
-            '0': lambda : (child_classes.CleverMonster(),)
+            '*': lambda: (Player(GoRightController()),),
+            '#': lambda: (Block(),),
+            '0': lambda: (child_classes.CleverMonster(),)
         }
         level_creator_ = level_creator.LevelCreator(legend)
         self.map = level_creator_.create_level([
@@ -320,7 +318,7 @@ class TestChildClasses(unittest.TestCase):
         self.assertTrue(monster.is_dead)
 
     def test_destroy_stone_block(self):
-        stone_block = child_classes.StoneBlock()
+        stone_block = child_classes.FortifiedBlock()
         self.map.add_map_object(stone_block, Point(0, 0))
         self.map.add_map_object(ExplosionBlock(100), Point(0, 0))
         self.game.make_turn()
@@ -371,9 +369,8 @@ class TestChildClasses(unittest.TestCase):
             Point(1, 0)
         )))
         self.assertEqual([self.player], self.game._map.get_map_objects(
-            Point(0,0)
+            Point(0, 0)
         ))
-
 
 
 if __name__ == "__main__":
