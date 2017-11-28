@@ -8,10 +8,12 @@ from level_creator import LevelCreator
 from child_classes import *
 
 RANDOM_LEVEL_SIZE = 10
-TIMER_DELAY_MILLISECONDS = 10
+TIMER_DELAY_MILLISECONDS = 5
+
 
 class GameController(GameController):
     pass
+
 
 class PlayerController(PlayerController):
 
@@ -61,25 +63,25 @@ class BombermanWindow(QtWidgets.QWidget):
     def initialize_game(self, level):
 
         legend = {
-            "#": lambda : (UnbreakableBlock(),),
-            "H": lambda : (DestroyableBlock(),),
-            "@": lambda : (SimpleMonster(),),
-            "h": lambda : (LongExplosionBonus(), DestroyableBlock()),
-            "I": lambda : (ImmuneBonus(), DestroyableBlock())
+            "#": lambda: (UnbreakableBlock(),),
+            "H": lambda: (DestroyableBlock(),),
+            "@": lambda: (SimpleMonster(),),
+            "h": lambda: (LongExplosionBonus(), DestroyableBlock()),
+            "I": lambda: (ImmuneBonus(), DestroyableBlock())
         }
 
-        level_creator = LevelCreator(legend)
         if level == "Random":
-            game_map = level_creator.create_random_level(RANDOM_LEVEL_SIZE,
-                                                         RANDOM_LEVEL_SIZE)
+            game_map = LevelCreator.create_random_level(RANDOM_LEVEL_SIZE,
+                                                        RANDOM_LEVEL_SIZE)
         else:
+            level_creator = LevelCreator(legend)
             with open(os.path.join('levels', level)) as f:
                 level_ = f.read().split('\n')
             game_map = level_creator.create_level(level_)
         self.controller = PlayerController()
-        player = logic.Player(self.controller)
+        player = Player(self.controller)
         game_map.add_map_object(player, Point(CELL_WIDTH, CELL_WIDTH))
-        self.game = logic.Game(game_map, GameController(), player)
+        self.game = Game(game_map, GameController(), player)
 
     def keyPressEvent(self, key_event):
         self.controller.set_key(key_event.key())
@@ -156,8 +158,6 @@ class BombermanView(QtWidgets.QFrame):
         for animation in self.animations:
             image = self.get_image(animation, self.animations)
             point = QtCore.QPoint(animation.location.x, animation.location.y)
-            rect = QtCore.QRect(animation.location.x, animation.location.y,
-                                CELL_WIDTH, CELL_WIDTH)
             painter.drawPixmap(point, image.image)
 
     def get_image(self, animation, animations):
@@ -194,6 +194,7 @@ class BombermanView(QtWidgets.QFrame):
             return self.explosion_central_image
         else:
             return self.images[type(animation.object)]
+
 
 class MainWindow(QtWidgets.QWidget):
 
