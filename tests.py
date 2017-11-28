@@ -344,7 +344,8 @@ class TestChildClasses(unittest.TestCase):
                          type(self.player.get_bomb()))
 
     def test_long_explosion_bonus(self):
-        self.assertEqual(1, self.player.get_bomb()._explosion_radius)
+        self.assertEqual(START_EXPLOSION_RADIUS,
+                         self.player.get_bomb()._explosion_radius)
         self.player.set_bomb_radius(10)
         self.assertEqual(10, self.player.get_bomb()._explosion_radius)
 
@@ -358,6 +359,20 @@ class TestChildClasses(unittest.TestCase):
         self.assertFalse(self.player.is_dead)
         self.game.make_turn()
         self.assertTrue(self.player.is_dead)
+
+    def test_player_cannot_move_to_destroyable_block(self):
+        self.map.add_map_object(self.player, Point(0, 0))
+        self.map.add_map_object(
+            child_classes.DestroyableBlock(),
+            Point(CELL_WIDTH, 0)
+        )
+        self.game.make_turn()
+        self.assertEqual(0, len(self.game._map.get_map_objects(
+            Point(1, 0)
+        )))
+        self.assertEqual([self.player], self.game._map.get_map_objects(
+            Point(0,0)
+        ))
 
 
 

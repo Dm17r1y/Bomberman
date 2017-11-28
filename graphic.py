@@ -8,7 +8,7 @@ from level_creator import LevelCreator
 from child_classes import *
 
 RANDOM_LEVEL_SIZE = 10
-TIMER_DELAY_MILLISECONDS = 100
+TIMER_DELAY_MILLISECONDS = 10
 
 class GameController(GameController):
     pass
@@ -27,7 +27,7 @@ class PlayerController(PlayerController):
             QtCore.Qt.Key_D: logic.Move(Direction.Right),
             QtCore.Qt.Key_E: logic.PutBomb(bomb)
         }
-        if self._key:
+        if self._key and self._key in actions:
             return actions[self._key]
         return logic.Move(Direction.Stand)
 
@@ -42,7 +42,7 @@ class BombermanWindow(QtWidgets.QWidget):
 
     def __init__(self, level):
         super().__init__()
-        self.view = BombermanView(self)
+        self.view = BombermanView(self, 30 * CELL_WIDTH, 30 * CELL_WIDTH)
         self.initialize_game(level)
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.make_turn)
@@ -50,9 +50,13 @@ class BombermanWindow(QtWidgets.QWidget):
         self.resize(30 * CELL_WIDTH, 30 * CELL_WIDTH)
         self.show()
 
+    def closeEvent(self, event):
+        self.timer = None
+
     def make_turn(self):
         animations = self.game.make_turn()
-        self.view.animate(animations)
+        self.view.animations = animations
+        self.view.repaint()
 
     def initialize_game(self, level):
 
@@ -80,34 +84,27 @@ class BombermanWindow(QtWidgets.QWidget):
     def keyPressEvent(self, key_event):
         self.controller.set_key(key_event.key())
 
-    def keyReleaseEvent(self, QKeyEvent):
+    def keyReleaseEvent(self, key_event):
         self.controller.release_key()
 
 
-class BombermanView(QtWidgets.QGraphicsView):
+class BombermanView(QtWidgets.QFrame):
 
-    def __init__(self, window):
-        super().__init__(window)
-        self.add_scene()
+    def __init__(self, window, width, height):
+        QtWidgets.QFrame.__init__(self, window)
+        self.width_ = width
+        self.height_ = height
+        self.resize(width, height)
+        self.setStyleSheet("background-color: cyan")
+        self.animations = []
         self.load_images()
 
     def load_images(self):
-
-        class AnimationImage(QtWidgets.QGraphicsWidget):
-            def __init__(self, image):
-                super().__init__()
-                self.image = image
-
-            def paint(self, painter, style, widget=None):
-                painter.drawPixmap(QtCore.QPointF(), self.image)
 
         class Image:
             def __init__(self, path_to_image):
                 self.image = QtGui.QPixmap(path_to_image) \
                     .scaled(CELL_WIDTH, CELL_WIDTH)
-
-            def get_animation_image(self):
-                return AnimationImage(self.image)
 
         block_stone_image = Image("images/block_stone.png")
         block_brick_image = Image("images/block_brick.png")
@@ -143,38 +140,27 @@ class BombermanView(QtWidgets.QGraphicsView):
         self.explosion_horizontal_image = explosion_horizontal_image
         self.explosion_central_image = explosion_central_image
 
-    def add_scene(self):
-        scene = QtWidgets.QGraphicsScene(0, 0, CELL_WIDTH * 30,
-                                         CELL_WIDTH * 30)
-        scene.setBackgroundBrush(QtCore.Qt.cyan)
-        self.setScene(scene)
+    def paintEvent(self, paint_event):
+        painter = QtGui.QPainter(self)
+        painter.drawText(QtCore.QPoint(0, 0), "1234")
+        self.draw_background(painter)
+        self.draw_game_objects(painter)
 
-    def animate(self, animations):
-        scene = self.scene()
-        scene.clear()
-        self.parallel_animations = QtCore.QParallelAnimationGroup()
-        for anim in animations:
-            animation = self.get_object_animation(anim, animations)
-            scene.addItem(animation.targetObject())
-            self.parallel_animations.addAnimation(animation)
-        self.parallel_animations.start()
+    def draw_background(self, painter):
+        background_rect = QtCore.QRect(0, 0, self.width_ * CELL_WIDTH,
+                                       self.height_ * CELL_WIDTH)
+        painter.fillRect(background_rect, QtCore.Qt.cyan)
 
-    def get_object_animation(self, animation, animations):
-        animation_item = self.get_animation_item(animation, animations)
-        animation_ = QtCore.QPropertyAnimation(animation_item, b"geometry")
-        animation_.setDuration(TIMER_DELAY_MILLISECONDS)
-        start_rect = QtCore.QRect(animation.location.x,
-                                  animation.location.y,
-                                  CELL_WIDTH, CELL_WIDTH)
-        new_coordinates = animation.location + animation.direction.value
-        end_rect = QtCore.QRect(new_coordinates.x,
-                                new_coordinates.y,
+    def draw_game_objects(self, painter):
+
+        for animation in self.animations:
+            image = self.get_image(animation, self.animations)
+            point = QtCore.QPoint(animation.location.x, animation.location.y)
+            rect = QtCore.QRect(animation.location.x, animation.location.y,
                                 CELL_WIDTH, CELL_WIDTH)
-        animation_.setStartValue(start_rect)
-        animation_.setEndValue(end_rect)
-        return animation_
+            painter.drawPixmap(point, image.image)
 
-    def get_animation_item(self, animation, animations):
+    def get_image(self, animation, animations):
 
         opposite = {
             Direction.Left: Direction.Right,
@@ -197,18 +183,17 @@ class BombermanView(QtWidgets.QGraphicsView):
             if len(neighboring_explosions) == 1:
                 return self.explosion_images[
                     opposite[neighboring_explosions[0]]
-                ].get_animation_image()
+                ]
             elif len(neighboring_explosions) == 2:
                 if set(neighboring_explosions) == \
                         {Direction.Up, Direction.Down}:
-                    return self.explosion_vertical_image.get_animation_image()
+                    return self.explosion_vertical_image
                 elif set(neighboring_explosions) == \
                         {Direction.Left, Direction.Right}:
-                    return self.explosion_horizontal_image\
-                        .get_animation_image()
-            return self.explosion_central_image.get_animation_image()
+                    return self.explosion_horizontal_image
+            return self.explosion_central_image
         else:
-            return self.images[type(animation.object)].get_animation_image()
+            return self.images[type(animation.object)]
 
 class MainWindow(QtWidgets.QWidget):
 

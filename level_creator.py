@@ -27,12 +27,13 @@ class LevelCreator:
         game_map = Map()
         self._add_borders(game_map, map_width, map_height)
         self._add_single_blocks(game_map, map_width, map_height)
-        empty_points = [Point(0, 0), Point(0, CELL_WIDTH),
-                        Point(CELL_WIDTH, 0)]
-        game_map.add_map_object(DestroyableBlock(), Point(CELL_WIDTH * 2, 0))
-        game_map.add_map_object(DestroyableBlock(), Point(CELL_WIDTH,
-                                                          CELL_WIDTH))
-        game_map.add_map_object(DestroyableBlock(), Point(0, CELL_WIDTH * 2))
+        empty_points = [
+            Point(CELL_WIDTH, CELL_WIDTH),
+            Point(CELL_WIDTH, 2 * CELL_WIDTH),
+            Point(2 * CELL_WIDTH, CELL_WIDTH)
+        ]
+        game_map.add_map_object(DestroyableBlock(), Point(CELL_WIDTH * 3, CELL_WIDTH))
+        game_map.add_map_object(DestroyableBlock(), Point(CELL_WIDTH, CELL_WIDTH * 3))
         self._add_random_objects(game_map, map_width, map_height, empty_points)
         return game_map
 

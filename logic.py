@@ -283,10 +283,13 @@ class Player(MapObject):
 
     def can_move(self, collisions, old_collisions):
         objects = [Block, Bomb]
-        return not any(game_object in map(type, collisions)
-                       for game_object in objects
-                       if game_object != self._last_bomb and
-                       self._last_bomb not in old_collisions)
+        for collision in collisions:
+            if collision is self._last_bomb and \
+                    self._last_bomb in old_collisions:
+                continue
+            if any(isinstance(collision, object) for object in objects):
+                return False
+        return True
 
     def solve_collision(self, other_objects: list):
         object_types = [Monster, ExplosionBlock]
