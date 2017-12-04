@@ -239,7 +239,9 @@ class OtherTests(unittest.TestCase):
             "1#1#1#1#1#1#1#1#1#1#",
             "* * * * * * * * * * "
         ]
-        game_map = level_creator_.create_level(level)
+        game_map, width, height = level_creator_.create_level(level)
+        self.assertEqual(width, 20)
+        self.assertEqual(height, 3)
         for i in range(10):
             self.assertEqual(Block, type(game_map.get_map_objects(
                 Point(i * CELL_SIZE * 2, 0)
@@ -286,7 +288,7 @@ class TestChildClasses(unittest.TestCase):
             '0': lambda: (child_classes.CleverMonster(),)
         }
         level_creator_ = level_creator.LevelCreator(legend)
-        self.map = level_creator_.create_level([
+        self.map, _, _ = level_creator_.create_level([
             "#####",
             "#0  #",
             "# # #",
@@ -298,6 +300,23 @@ class TestChildClasses(unittest.TestCase):
         self.assertEqual(child_classes.CleverMonster,
                          type(self.game.map.get_map_objects(
                              Point(CELL_SIZE + 1, CELL_SIZE)
+                         )[0]))
+
+    def test_clever_monster_2(self):
+        legend = {
+            '*': lambda: (Player(GoRightController()),),
+            '0': lambda: (child_classes.CleverMonster(),)
+        }
+        level_creator_ = level_creator.LevelCreator(legend)
+        self.map, _, _ = level_creator_.create_level([
+            "*     0"
+        ])
+        self.game = Game(self.map, GameController(),
+                         Player(GoRightController()))
+        self.game.make_turn()
+        self.assertEqual(child_classes.CleverMonster,
+                         type(self.game.map.get_map_objects(
+                             Point(CELL_SIZE*6 - 1, 0)
                          )[0]))
 
     def test_new_monsters_kill_player(self):

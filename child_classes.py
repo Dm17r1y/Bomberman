@@ -2,6 +2,7 @@
 
 from logic import *
 import random
+from queue import Queue
 
 
 LONG_RANGE_EXPLOSION_RADIUS = 5
@@ -53,14 +54,14 @@ class CleverMonster(SimpleMonster):
             self.VISION_RANGE * CELL_SIZE
 
     def move(self, coordinates: 'Point', old_map: 'Map'):
-
         visited = set()
         rounded_coordinates = Map.round_point(coordinates, CELL_SIZE)
-        stack = [rounded_coordinates]
+        queue = Queue()
+        queue.put(rounded_coordinates)
         track = {}
         player_position = None
-        while len(stack) > 0:
-            node = stack.pop()
+        while not queue.empty():
+            node = queue.get()
             for direction in (Direction.Down, Direction.Up,
                               Direction.Left, Direction.Right):
                 new_node = node + (direction.value * CELL_SIZE)
@@ -71,7 +72,7 @@ class CleverMonster(SimpleMonster):
                         self._correct_collisions_to_move(collisions):
 
                     visited.add(new_node)
-                    stack.append(new_node)
+                    queue.put(new_node)
                     track[new_node] = node
 
                     if any(isinstance(collision, Player)
@@ -94,7 +95,7 @@ class CleverMonster(SimpleMonster):
             return Move(Direction.Left)
         elif direction.y > 0:
             return Move(Direction.Up)
-        elif direction.y > 0:
+        elif direction.y < 0:
             return Move(Direction.Down)
         else:
             return Move(Direction.Stand)

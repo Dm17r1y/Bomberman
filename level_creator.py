@@ -14,7 +14,7 @@ class LevelCreator:
 
     def create_level(self, level):
         game_map = Map()
-        height = len(level) - 1
+        height = len(level)
         width = max(len(level_) for level_ in level)
         for y, line in enumerate(level):
             for x, char in enumerate(line):

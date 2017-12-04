@@ -47,7 +47,6 @@ class BombermanWindow(QtWidgets.QWidget):
     def __init__(self, level):
         super().__init__()
         width, height = self.initialize_game(level)
-        print(width, height)
         self.view = BombermanView(self, width * CELL_SIZE, height * CELL_SIZE)
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.make_turn)
@@ -69,7 +68,11 @@ class BombermanWindow(QtWidgets.QWidget):
             "H": lambda: (DestroyableBlock(),),
             "@": lambda: (SimpleMonster(),),
             "h": lambda: (LongExplosionBonus(), DestroyableBlock()),
-            "I": lambda: (ImmuneBonus(), DestroyableBlock())
+            "I": lambda: (ImmuneBonus(), DestroyableBlock()),
+            "C": lambda: (CleverMonster(),),
+            "E": lambda: (HighBombBonus(), DestroyableBlock()),
+            "S": lambda: (StrongMonster(),),
+            "R": lambda: (FortifiedBlock(),)
         }
 
         if level == "Random":
@@ -181,7 +184,8 @@ class BombermanView(QtWidgets.QFrame):
             ImmuneBonus: 4,
             ImmuneBuff: 4,
             LongRangeExplosionBuff: 4,
-            LongExplosionBonus: 4
+            LongExplosionBonus: 4,
+            HighBombBonus: 4
         }
         self.animations = animations
         self.animations.sort(key=lambda animation:priority[
@@ -190,7 +194,6 @@ class BombermanView(QtWidgets.QFrame):
 
     def paintEvent(self, paint_event):
         painter = QtGui.QPainter(self)
-        #painter.drawText(QtCore.QPoint(0, 0), "1234")
         self.draw_background(painter)
         self.draw_game_objects(painter)
 
