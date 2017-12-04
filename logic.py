@@ -5,7 +5,7 @@ from collections import defaultdict
 from controller import *
 
 
-CELL_WIDTH = 16
+CELL_SIZE = 16
 EXPLOSION_LIVE = 10
 TIME_EXPLOSION_DELAY = 100
 START_EXPLOSION_RADIUS = 2
@@ -21,14 +21,19 @@ class Map:
 
     def __init__(self):
         self._objects = defaultdict(list)
+        self._sorted_points_by_x = []
+        self._sorted_points_by_y = []
 
     def add_map_object(self, map_object: 'MapObject', coordinates: 'Point'):
         self._objects[coordinates].append(map_object)
+        self._sorted_points_by_x = None
+        self._sorted_points_by_y = None
+
 
     def get_map_objects(self, coordinates: Point):
         if coordinates not in self._objects:
             return []
-        return self._objects[coordinates].copy()
+        return self._objects[coordinates]
 
     @staticmethod
     def round(number: int, cell_width: int) -> int:
@@ -44,7 +49,7 @@ class Map:
                      Map.round(point.y, cell_width))
 
     def add_bomb(self, bomb: 'Bomb', coordinates: 'Point'):
-        self.add_map_object(bomb, Map.round_point(coordinates, CELL_WIDTH))
+        self.add_map_object(bomb, Map.round_point(coordinates, CELL_SIZE))
 
     def enumerate_all_objects(self):
         for point in self._objects.keys():
@@ -56,21 +61,59 @@ class Map:
                         second_coordinates: Point):
 
         return abs(first_coordinates.x - second_coordinates.x) < \
-               CELL_WIDTH and \
+               CELL_SIZE and \
                abs(first_coordinates.y - second_coordinates.y) < \
-               CELL_WIDTH
+               CELL_SIZE
 
-    def get_collisions(self, map_object: 'MapObject', coordinates: 'Point')\
-            -> list:
+    def get_collisions(self, coordinates: 'Point'):
+        self._check_sorted_points()
+        set_x = self._find_intersections(coordinates, self._sorted_points_by_x,
+                                         lambda point: point.x, CELL_SIZE)
+        set_y = self._find_intersections(coordinates, self._sorted_points_by_y,
+                                         lambda point: point.y, CELL_SIZE)
         collisions = []
-        for object_coordinates, game_object in \
-                ((point, obj)
-                 for point, obj in self.enumerate_all_objects()
-                 if obj != map_object):
-            if Map.are_intersected(coordinates, object_coordinates):
-                collisions.append(game_object)
-
+        for point in set_x.intersection(set_y):
+            for object in self.get_map_objects(point):
+                collisions.append(object)
         return collisions
+
+    def _check_sorted_points(self):
+        if self._sorted_points_by_x == None:
+            self._sorted_points_by_x = list(self._objects.keys())
+            self._sorted_points_by_x.sort(key=lambda point: point.x)
+        if self._sorted_points_by_y == None:
+            self._sorted_points_by_y = list(self._objects.keys())
+            self._sorted_points_by_y.sort(key=lambda point: point.y)
+
+    def _find_intersections(self, point, sorted_list, coordinates_func,
+                            cell_width):
+
+        def compare_func(point1, point2):
+            return coordinates_func(point1) - coordinates_func(point2)
+
+        point_index = self._binary_search(point, sorted_list, compare_func)
+        collisions_set = set()
+        for i in range(point_index, len(sorted_list)):
+            if abs(compare_func(point, sorted_list[i])) >= cell_width:
+                break
+            collisions_set.add(sorted_list[i])
+
+        for i in range(point_index - 1, -1, -1):
+            if abs(compare_func(point, sorted_list[i])) >= cell_width:
+                break
+            collisions_set.add(sorted_list[i])
+        return collisions_set
+
+    def _binary_search(self, point, sorted_list, compare_function):
+        first = 0
+        last = len(sorted_list) - 1
+        while first != last:
+            middle = (first + last) // 2
+            if compare_function(point, sorted_list[middle]) <= 0:
+                last = middle
+            else:
+                first = middle + 1
+        return first
 
     @property
     def occupied_cells(self) -> set:
@@ -110,8 +153,7 @@ class Game:
         game_map = Map()
         for point in intermediate_map.occupied_cells:
             for game_object in intermediate_map.get_map_objects(point):
-                other_objects = intermediate_map.get_collisions(game_object,
-                                                                point)
+                other_objects = intermediate_map.get_collisions(point)
                 game_object.solve_collision(other_objects)
                 if not game_object.is_dead:
                     game_map.add_map_object(game_object, point)
@@ -138,9 +180,9 @@ class Move:
         return self._direction
 
     def change_game_state(self, game_object, coordinates, old_map, game_map):
-        collisions = old_map.get_collisions(game_object,
-                                            coordinates + self.direction.value)
-        old_collisions = old_map.get_collisions(game_object, coordinates)
+        collisions = old_map.get_collisions(coordinates +
+                                            self.direction.value)
+        old_collisions = old_map.get_collisions(coordinates)
         if game_object.can_move(collisions, old_collisions):
             game_map.add_map_object(game_object,
                                     coordinates + self.direction.value)
@@ -152,8 +194,7 @@ class Move:
             for new_direction in directions:
                 for i in range(1, CORNER_SIZE + 1):
                     point = i * new_direction.value + self.direction.value
-                    collisions = old_map.get_collisions(game_object,
-                                                        coordinates + point)
+                    collisions = old_map.get_collisions(coordinates + point)
                     if game_object.can_move(collisions, old_collisions):
                         game_map.add_map_object(game_object,
                                                 coordinates +
@@ -175,9 +216,9 @@ class PutBomb:
 
     def change_game_state(self, game_object, coordinates, old_map, game_map):
         animations = []
-        point = Map.round_point(coordinates, CELL_WIDTH)
-        collisions = old_map.get_collisions(game_object, point)
-        if len(collisions) == 0:
+        point = Map.round_point(coordinates, CELL_SIZE)
+        collisions = old_map.get_collisions(point)
+        if collisions == [game_object]:
             game_map.add_bomb(self.bomb, coordinates)
             game_object.set_last_bomb(self.bomb)
             animations.append(Animation(self.bomb, coordinates,
@@ -203,13 +244,13 @@ class Explose:
                           Direction.Up, Direction.Down):
             for i in range(1, self._radius):
                 point = Point(coordinates.x +
-                              i * direction.value.x * CELL_WIDTH,
+                              i * direction.value.x * CELL_SIZE,
                               coordinates.y +
-                              i * direction.value.y * CELL_WIDTH)
+                              i * direction.value.y * CELL_SIZE)
                 explosion = self._explosion_type(EXPLOSION_LIVE)
                 animations.append(Animation(explosion, point, Direction.Stand))
                 game_map.add_map_object(explosion, point)
-                collisions = old_map.get_collisions(None, point)
+                collisions = old_map.get_collisions(point)
                 if any(game_object in map(type, collisions)
                        for game_object in stop_explosion_objects):
                     break

@@ -7,8 +7,10 @@ import os
 from level_creator import LevelCreator
 from child_classes import *
 
-RANDOM_LEVEL_SIZE = 10
-TIMER_DELAY_MILLISECONDS = 5
+import time
+
+RANDOM_LEVEL_SIZE = 15
+TIMER_DELAY_MILLISECONDS = 30
 
 
 class GameController(GameController):
@@ -44,12 +46,12 @@ class BombermanWindow(QtWidgets.QWidget):
 
     def __init__(self, level):
         super().__init__()
-        self.view = BombermanView(self, 30 * CELL_WIDTH, 30 * CELL_WIDTH)
-        self.initialize_game(level)
+        width, height = self.initialize_game(level)
+        print(width, height)
+        self.view = BombermanView(self, width * CELL_SIZE, height * CELL_SIZE)
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.make_turn)
         self.timer.start(TIMER_DELAY_MILLISECONDS)
-        self.resize(30 * CELL_WIDTH, 30 * CELL_WIDTH)
         self.show()
 
     def closeEvent(self, event):
@@ -57,7 +59,7 @@ class BombermanWindow(QtWidgets.QWidget):
 
     def make_turn(self):
         animations = self.game.make_turn()
-        self.view.animations = animations
+        self.view.set_animations(animations)
         self.view.repaint()
 
     def initialize_game(self, level):
@@ -73,15 +75,20 @@ class BombermanWindow(QtWidgets.QWidget):
         if level == "Random":
             game_map = LevelCreator.create_random_level(RANDOM_LEVEL_SIZE,
                                                         RANDOM_LEVEL_SIZE)
+            level_width = RANDOM_LEVEL_SIZE
+            level_height = RANDOM_LEVEL_SIZE
         else:
             level_creator = LevelCreator(legend)
             with open(os.path.join('levels', level)) as f:
                 level_ = f.read().split('\n')
-            game_map = level_creator.create_level(level_)
+            game_map, level_width, level_height = \
+                level_creator.create_level(level_)
         self.controller = PlayerController()
         player = Player(self.controller)
-        game_map.add_map_object(player, Point(CELL_WIDTH, CELL_WIDTH))
+        player.set_bomb_type(SimpleBomb)
+        game_map.add_map_object(player, Point(CELL_SIZE, CELL_SIZE))
         self.game = Game(game_map, GameController(), player)
+        return level_width, level_height
 
     def keyPressEvent(self, key_event):
         self.controller.set_key(key_event.key())
@@ -105,11 +112,16 @@ class BombermanView(QtWidgets.QFrame):
 
         class Image:
             def __init__(self, path_to_image):
-                self.image = QtGui.QPixmap(path_to_image) \
-                    .scaled(CELL_WIDTH, CELL_WIDTH)
+                self._image = QtGui.QPixmap(path_to_image) \
+                    .scaled(CELL_SIZE, CELL_SIZE)
 
-        block_stone_image = Image("images/block_stone.png")
-        block_brick_image = Image("images/block_brick.png")
+            @property
+            def image(self):
+                return self._image
+
+        unbreakable_block_image = Image("images/unbreakable_block.png")
+        destroyable_block_image = Image("images/destroyable_block.png")
+        fortified_block_image = Image("images/fortified_block.png")
         player_image = Image("images/player.png")
         bomb_image = Image("images/bomb.png")
         explosion_central_image = Image("images/explosion_center.png")
@@ -119,17 +131,26 @@ class BombermanView(QtWidgets.QFrame):
         explosion_down_image = Image("images/explosion_down.png")
         explosion_vertical_image = Image("images/explosion_vertical.png")
         explosion_horizontal_image = Image("images/explosion_horizontal.png")
-        monster_image = Image("images/monster.png")
+        simple_monster_image = Image("images/simple_monster.png")
+        clever_monster_image = Image("images/clever_monster.png")
+        strong_monster_image = Image("images/strong_monster.png")
+        high_bomb_bonus_image = Image("images/high_bomb_bonus.png")
+        immune_bonus_image = Image("images/immune_bonus.png")
+        long_explosion_bonus_image = Image("images/long_explosion_bonus.png")
 
         self.images = {
-            Block: block_stone_image,
+            UnbreakableBlock: unbreakable_block_image,
             Player: player_image,
-            Bomb: bomb_image,
-            Monster: monster_image,
-            UnbreakableBlock: block_stone_image,
             SimpleBomb: bomb_image,
-            SimpleMonster: monster_image,
-            DestroyableBlock: block_brick_image
+            HighPowerBomb: bomb_image,
+            SimpleMonster: simple_monster_image,
+            CleverMonster: clever_monster_image,
+            StrongMonster: strong_monster_image,
+            HighBombBonus: high_bomb_bonus_image,
+            ImmuneBonus: immune_bonus_image,
+            LongExplosionBonus: long_explosion_bonus_image,
+            DestroyableBlock: destroyable_block_image,
+            FortifiedBlock: fortified_block_image
         }
 
         self.explosion_images = {
@@ -142,22 +163,48 @@ class BombermanView(QtWidgets.QFrame):
         self.explosion_horizontal_image = explosion_horizontal_image
         self.explosion_central_image = explosion_central_image
 
+    def set_animations(self, animations):
+        priority = {
+            Player: 0,
+            SimpleMonster: 1,
+            StrongMonster: 1,
+            CleverMonster: 1,
+            Block: 1,
+            UnbreakableBlock: 1,
+            FortifiedBlock: 1,
+            SimpleBomb: 1,
+            HighPowerBomb: 1,
+            ExplosionBlock: 2,
+            HighPoweredExplosion: 2,
+            DestroyableBlock: 3,
+            Bonus: 4,
+            ImmuneBonus: 4,
+            ImmuneBuff: 4,
+            LongRangeExplosionBuff: 4,
+            LongExplosionBonus: 4
+        }
+        self.animations = animations
+        self.animations.sort(key=lambda animation:priority[
+            type(animation.object)
+        ], reverse=True)
+
     def paintEvent(self, paint_event):
         painter = QtGui.QPainter(self)
-        painter.drawText(QtCore.QPoint(0, 0), "1234")
+        #painter.drawText(QtCore.QPoint(0, 0), "1234")
         self.draw_background(painter)
         self.draw_game_objects(painter)
 
     def draw_background(self, painter):
-        background_rect = QtCore.QRect(0, 0, self.width_ * CELL_WIDTH,
-                                       self.height_ * CELL_WIDTH)
+        background_rect = QtCore.QRect(0, 0, self.width_ * CELL_SIZE,
+                                       self.height_ * CELL_SIZE)
         painter.fillRect(background_rect, QtCore.Qt.cyan)
 
     def draw_game_objects(self, painter):
 
         for animation in self.animations:
             image = self.get_image(animation, self.animations)
-            point = QtCore.QPoint(animation.location.x, animation.location.y)
+            location = animation.location + animation.direction.value
+            point = QtCore.QPoint(location.x, location.y)
             painter.drawPixmap(point, image.image)
 
     def get_image(self, animation, animations):
@@ -176,7 +223,7 @@ class BombermanView(QtWidgets.QFrame):
             neighboring_explosions = []
             for direction in (Direction.Left, Direction.Right,
                               Direction.Up, Direction.Down):
-                if animation.location + (direction.value * CELL_WIDTH)\
+                if animation.location + (direction.value * CELL_SIZE)\
                         in animation_points:
                     neighboring_explosions.append(direction)
 

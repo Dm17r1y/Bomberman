@@ -60,7 +60,7 @@ class MovementTests(unittest.TestCase):
                          self.game._map.get_map_objects(Point(1, 0))[0])
 
     def test_move_player_to_block(self):
-        self.map.add_map_object(Block(), Point(CELL_WIDTH, 0))
+        self.map.add_map_object(Block(), Point(CELL_SIZE, 0))
         self.game.make_turn()
         self.assertEqual(1, len(self.game._map.get_map_objects(Point(0, 0))))
         self.assertEqual(0, len(self.game._map.get_map_objects(Point(1, 0))))
@@ -83,7 +83,7 @@ class PlayerCollisionTests(unittest.TestCase):
 
     def test_collision_player_and_monster(self):
         monster = Monster()
-        self.map.add_map_object(monster, Point(CELL_WIDTH, 0))
+        self.map.add_map_object(monster, Point(CELL_SIZE, 0))
         self.assertEqual(False, self.player.is_dead)
         self.game.make_turn()
         self.assertEqual(True, self.player.is_dead)
@@ -130,7 +130,7 @@ class BombAndExplosionTests(unittest.TestCase):
         for i in range(1, 5):
             for direction in (Direction.Up, Direction.Down,
                               Direction.Right, Direction.Left):
-                point = direction.value * CELL_WIDTH * i
+                point = direction.value * CELL_SIZE * i
                 self.assertEqual(1, len(self.game._map.get_map_objects(point)))
                 self.assertEqual(ExplosionBlock,
                                  type(self.game._map
@@ -146,14 +146,14 @@ class BombAndExplosionTests(unittest.TestCase):
 
     def test_stop_explosion(self):
         block = Block()
-        self.map.add_map_object(block, Point(0, CELL_WIDTH))
+        self.map.add_map_object(block, Point(0, CELL_SIZE))
         bomb = Bomb(1, 5)
         self.map.add_map_object(bomb, Point(0, 0))
         self.game.make_turn()
         self.assertIn(block, self.game._map
-                      .get_map_objects(Point(0, CELL_WIDTH)))
+                      .get_map_objects(Point(0, CELL_SIZE)))
         self.assertEqual(0, len(self.game._map
-                                .get_map_objects(Point(0, CELL_WIDTH * 2))))
+                                .get_map_objects(Point(0, CELL_SIZE * 2))))
 
     def test_player_can_walk_trough_placed_bomb(self):
 
@@ -204,13 +204,13 @@ class OtherTests(unittest.TestCase):
         self.map.add_map_object(Block(), Point(32, 32))
         player = Player(GoRightController())
         self.map.add_map_object(player,
-                                Point(32 - CELL_WIDTH,
-                                      32 - CELL_WIDTH + CORNER_SIZE))
+                                Point(32 - CELL_SIZE,
+                                      32 - CELL_SIZE + CORNER_SIZE))
         self.game.make_turn()
         self.assertEqual([player],
                          self.game._map.get_map_objects(
-                             Point(32 - CELL_WIDTH,
-                                   32 - CELL_WIDTH + CORNER_SIZE - 1))
+                             Point(32 - CELL_SIZE,
+                                   32 - CELL_SIZE + CORNER_SIZE - 1))
                          )
 
     def test_animations(self):
@@ -242,22 +242,22 @@ class OtherTests(unittest.TestCase):
         game_map = level_creator_.create_level(level)
         for i in range(10):
             self.assertEqual(Block, type(game_map.get_map_objects(
-                Point(i * CELL_WIDTH * 2, 0)
+                Point(i * CELL_SIZE * 2, 0)
             )[0]))
             self.assertEqual(0, len(game_map.get_map_objects(
-                Point(i * CELL_WIDTH * 2 + CELL_WIDTH, 0)
+                Point(i * CELL_SIZE * 2 + CELL_SIZE, 0)
             )))
             self.assertEqual(Monster, type(game_map.get_map_objects(
-                Point(i * CELL_WIDTH * 2, CELL_WIDTH)
+                Point(i * CELL_SIZE * 2, CELL_SIZE)
             )[0]))
             self.assertEqual(Block, type(game_map.get_map_objects(
-                Point(i * CELL_WIDTH * 2 + CELL_WIDTH, CELL_WIDTH)
+                Point(i * CELL_SIZE * 2 + CELL_SIZE, CELL_SIZE)
             )[0]))
             self.assertEqual(Player, type(game_map.get_map_objects(
-                Point(i * CELL_WIDTH * 2, CELL_WIDTH * 2)
+                Point(i * CELL_SIZE * 2, CELL_SIZE * 2)
             )[0]))
             self.assertEqual(0, len(game_map.get_map_objects(
-                Point(i * CELL_WIDTH * 2 + CELL_WIDTH, CELL_WIDTH * 2)
+                Point(i * CELL_SIZE * 2 + CELL_SIZE, CELL_SIZE * 2)
             )))
 
 
@@ -270,13 +270,13 @@ class TestChildClasses(unittest.TestCase):
 
     def test_simple_monster(self):
         monster = child_classes.SimpleMonster()
-        self.map.add_map_object(monster, Point(CELL_WIDTH, CELL_WIDTH))
-        self.map.add_map_object(Block(), Point(CELL_WIDTH, 0))
-        self.map.add_map_object(Block(), Point(0, CELL_WIDTH))
-        self.map.add_map_object(Block(), Point(CELL_WIDTH, CELL_WIDTH * 2))
+        self.map.add_map_object(monster, Point(CELL_SIZE, CELL_SIZE))
+        self.map.add_map_object(Block(), Point(CELL_SIZE, 0))
+        self.map.add_map_object(Block(), Point(0, CELL_SIZE))
+        self.map.add_map_object(Block(), Point(CELL_SIZE, CELL_SIZE * 2))
         self.game.make_turn()
         self.assertEqual([monster], self.game._map
-                         .get_map_objects(Point(CELL_WIDTH + 1, CELL_WIDTH)))
+                         .get_map_objects(Point(CELL_SIZE + 1, CELL_SIZE)))
         self.assertEqual(Direction.Right, monster.direction)
 
     def test_clever_monster(self):
@@ -297,7 +297,7 @@ class TestChildClasses(unittest.TestCase):
         self.game.make_turn()
         self.assertEqual(child_classes.CleverMonster,
                          type(self.game.map.get_map_objects(
-                             Point(CELL_WIDTH + 1, CELL_WIDTH)
+                             Point(CELL_SIZE + 1, CELL_SIZE)
                          )[0]))
 
     def test_new_monsters_kill_player(self):
@@ -362,7 +362,7 @@ class TestChildClasses(unittest.TestCase):
         self.map.add_map_object(self.player, Point(0, 0))
         self.map.add_map_object(
             child_classes.DestroyableBlock(),
-            Point(CELL_WIDTH, 0)
+            Point(CELL_SIZE, 0)
         )
         self.game.make_turn()
         self.assertEqual(0, len(self.game._map.get_map_objects(
