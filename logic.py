@@ -238,7 +238,7 @@ class Explose:
 
     def change_game_state(self, game_object, coordinates, old_map, game_map):
         animations = []
-        stop_explosion_objects = (Block, Bomb, Bonus)
+        stop_explosion_classes = (Block, Bomb, Bonus)
         game_map.add_map_object(ExplosionBlock(EXPLOSION_LIVE), coordinates)
         for direction in (Direction.Right, Direction.Left,
                           Direction.Up, Direction.Down):
@@ -251,8 +251,9 @@ class Explose:
                 animations.append(Animation(explosion, point, Direction.Stand))
                 game_map.add_map_object(explosion, point)
                 collisions = old_map.get_collisions(point)
-                if any(game_object in map(type, collisions)
-                       for game_object in stop_explosion_objects):
+                if any(isinstance(game_object, class_)
+                       for game_object in collisions
+                       for class_ in stop_explosion_classes):
                     break
         return animations
 
@@ -391,7 +392,9 @@ class Bonus(MapObject):
     def solve_collision(self, other_objects):
         if any(isinstance(object_, Player) for object_ in other_objects):
             self._is_dead = True
-            self.add_bonus(object)
+            player = next(obj for obj in other_objects
+                          if isinstance(obj, Player))
+            self.add_bonus(player)
 
     def add_bonus(self, player):
         pass
