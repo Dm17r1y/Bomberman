@@ -7,10 +7,9 @@ import os
 from level_creator import LevelCreator
 from child_classes import *
 
-import time
-
 RANDOM_LEVEL_SIZE = 15
 TIMER_DELAY_MILLISECONDS = 30
+BOMBERMAN_LIVES = 3
 
 
 class GameController(GameController):
@@ -44,8 +43,12 @@ class PlayerController(PlayerController):
 
 class BombermanWindow(QtWidgets.QWidget):
 
-    def __init__(self, level):
+    def __init__(self, levels):
         super().__init__()
+        self.levels = levels
+        self.level_number = 0
+        self.bomberman_lives = 3
+        level = levels[0]
         width, height = self.initialize_game(level)
         self.view = BombermanView(self, width * CELL_SIZE, height * CELL_SIZE)
         self.timer = QtCore.QTimer()
@@ -61,6 +64,53 @@ class BombermanWindow(QtWidgets.QWidget):
         self.view.set_animations(animations)
         self.view.repaint()
 
+        if self.is_player_lose():
+            self.get_lose_window()
+        if self.is_player_win():
+            self.get_win_window()
+
+    def is_player_win(self):
+        return self.game.monster_count == 0
+
+    def is_player_lose(self):
+        return self.game.player.is_dead
+
+    def get_win_window(self):
+        self.level_number += 1
+        if self.level_number >= len(self.levels):
+            reply = QtWidgets.QMessageBox.question(self, 'You win',
+                                                   'You passed all levels',
+                                                   QtWidgets.QMessageBox.Ok)
+            self.timer.stop()
+            self.close()
+        else:
+            reply = QtWidgets.QMessageBox.question(self,
+                                                   'You win', 'Continue?',
+                                                   QtWidgets.QMessageBox.Yes |
+                                                   QtWidgets.QMessageBox.No)
+            if reply == QtWidgets.QMessageBox.Yes:
+                level = self.levels[self.level_number]
+                self.initialize_game(level)
+            else:
+                self.timer.stop()
+                self.close()
+
+    def get_lose_window(self):
+        self.bomberman_lives -= 1
+        reply = QtWidgets.QMessageBox.question(self, 'You lose',
+                                               'You have {} lives. Continue?'
+                                               .format(self.bomberman_lives),
+                                               QtWidgets.QMessageBox.Yes |
+                                               QtWidgets.QMessageBox.No)
+        if reply == QtWidgets.QMessageBox.Yes:
+            if self.bomberman_lives <= 0:
+                self.bomberman_lives = BOMBERMAN_LIVES
+                self.level_number = 0
+            self.initialize_game(self.levels[self.level_number])
+        else:
+            self.timer.stop()
+            self.close()
+
     def initialize_game(self, level):
 
         legend = {
@@ -72,7 +122,7 @@ class BombermanWindow(QtWidgets.QWidget):
             "C": lambda: (CleverMonster(),),
             "E": lambda: (HighBombBonus(), DestroyableBlock()),
             "S": lambda: (StrongMonster(),),
-            "R": lambda: (FortifiedBlock(),)
+            "F": lambda: (FortifiedBlock(),)
         }
 
         if level == "Random":
@@ -82,7 +132,7 @@ class BombermanWindow(QtWidgets.QWidget):
             level_height = RANDOM_LEVEL_SIZE
         else:
             level_creator = LevelCreator(legend)
-            with open(os.path.join('levels', level)) as f:
+            with open(level) as f:
                 level_ = f.read().split('\n')
             game_map, level_width, level_height = \
                 level_creator.create_level(level_)
@@ -255,15 +305,21 @@ class MainWindow(QtWidgets.QWidget):
         start_button.clicked.connect(self.start)
         layout.addWidget(start_button)
 
-        levels = os.listdir('levels') + ["Random"]
+        directories = os.listdir('levels') + ["Random"]
         self.combo_box = QtWidgets.QComboBox()
-        self.combo_box.addItems(levels)
+        self.combo_box.addItems(directories)
         layout.addWidget(self.combo_box)
         self.setLayout(layout)
         self.show()
 
     def start(self):
-        self.window = BombermanWindow(self.combo_box.currentText())
+        level = self.combo_box.currentText()
+        if level == "Random":
+            self.window = BombermanWindow(["Random"])
+        else:
+            levels = os.listdir(os.path.join('levels', level))
+            levels = [os.path.join('levels', level, name) for name in levels]
+            self.window = BombermanWindow(levels)
 
 
 def main():

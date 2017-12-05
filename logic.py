@@ -131,6 +131,15 @@ class Game:
         self._player = player
 
     @property
+    def monster_count(self):
+        monster_count = 0
+        for cell in self._map.occupied_cells:
+            for obj in self._map.get_map_objects(cell):
+                if isinstance(obj, Monster):
+                    monster_count += 1
+        return monster_count
+
+    @property
     def player(self) -> 'Player':
         return self._player
 
