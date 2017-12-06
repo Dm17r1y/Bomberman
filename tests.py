@@ -4,6 +4,7 @@ import unittest
 from logic import *
 import child_classes
 import level_creator
+from controller import *
 
 
 class GoRightController(PlayerController):

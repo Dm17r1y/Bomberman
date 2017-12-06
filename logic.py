@@ -2,7 +2,6 @@
 
 from point import Direction, Point
 from collections import defaultdict
-from controller import *
 
 
 CELL_SIZE = 16
@@ -28,7 +27,6 @@ class Map:
         self._objects[coordinates].append(map_object)
         self._sorted_points_by_x = None
         self._sorted_points_by_y = None
-
 
     def get_map_objects(self, coordinates: Point):
         if coordinates not in self._objects:
@@ -78,10 +76,10 @@ class Map:
         return collisions
 
     def _check_sorted_points(self):
-        if self._sorted_points_by_x == None:
+        if self._sorted_points_by_x is None:
             self._sorted_points_by_x = list(self._objects.keys())
             self._sorted_points_by_x.sort(key=lambda point: point.x)
-        if self._sorted_points_by_y == None:
+        if self._sorted_points_by_y is None:
             self._sorted_points_by_y = list(self._objects.keys())
             self._sorted_points_by_y.sort(key=lambda point: point.y)
 
@@ -388,11 +386,6 @@ class Bomb(MapObject):
             self._is_dead = True
             return Explose(self._explosion_type, coordinates,
                            self._explosion_radius)
-        #collisions = old_map.get_collisions(coordinates)
-        #if any(isinstance(collision, ExplosionBlock)
-        #       for collision in collisions):
-        #    return Explose(self._explosion_type, coordinates,
-        #                   self._explosion_radius)
         return Move(Direction.Stand)
 
 

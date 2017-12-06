@@ -50,8 +50,8 @@ class CleverMonster(SimpleMonster):
     def in_vision_range(self, my_coordinates, object_coordinates):
         return abs(my_coordinates.x - object_coordinates.x) < \
                self.VISION_RANGE * CELL_SIZE and \
-            abs(my_coordinates.y - object_coordinates.y) < \
-            self.VISION_RANGE * CELL_SIZE
+               abs(my_coordinates.y - object_coordinates.y) < \
+               self.VISION_RANGE * CELL_SIZE
 
     def move(self, coordinates: 'Point', old_map: 'Map'):
         visited = set()

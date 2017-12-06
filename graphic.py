@@ -13,6 +13,7 @@ RANDOM_LEVEL_SIZE = 15
 TIMER_DELAY_MILLISECONDS = 30
 BOMBERMAN_LIVES = 3
 
+
 class Cheat:
 
     def __init__(self, sequence, effect):
@@ -28,6 +29,7 @@ class Cheat:
                 self._effect()
         else:
             self._progress = 0
+
 
 class GameController(GameController):
 
@@ -144,7 +146,6 @@ class BombermanWindow(QtWidgets.QWidget):
                              Qt.Key_J, Qt.Key_K, Qt.Key_L],
                             change_buttons_like_vim))
         return cheats
-
 
     def closeEvent(self, event):
         self.timer = None
@@ -339,7 +340,7 @@ class BombermanView(QtWidgets.QFrame):
             HighBombBonus: 4
         }
         self.animations = animations
-        self.animations.sort(key=lambda animation:priority[
+        self.animations.sort(key=lambda animation: priority[
             type(animation.object)
         ], reverse=True)
 
