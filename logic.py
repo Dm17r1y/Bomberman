@@ -10,7 +10,7 @@ EXPLOSION_LIVE = 10
 TIME_EXPLOSION_DELAY = 100
 START_EXPLOSION_RADIUS = 2
 CORNER_SIZE = 8
-BUFF_TIME = 10000
+BUFF_TIME = 1000
 
 
 class OutOfMapRangeException(Exception):
@@ -122,12 +122,8 @@ class Map:
 
 class Game:
 
-    def __init__(self,
-                 game_map: 'Map',
-                 controller: 'GameController',
-                 player: 'Player'):
+    def __init__(self, game_map: 'Map', player: 'Player'):
         self._map = game_map
-        self._controller = controller
         self._player = player
 
     @property
@@ -146,6 +142,9 @@ class Game:
     @property
     def map(self):
         return self._map
+
+    def set_map(self, map):
+        self._map = map
 
     def make_turn(self):
         animations = []
@@ -285,6 +284,10 @@ class MapObject:
     def is_dead(self):
         return self._is_dead
 
+    @is_dead.setter
+    def is_dead(self, is_dead):
+        self._is_dead = is_dead
+
 
 class BombCreator:
 
@@ -312,6 +315,10 @@ class Player(MapObject):
         self._bomb_creator = BombCreator()
         self._buffs = []
         self.immune = False
+
+    def set_controller(self, controller):
+        self._controller = controller
+        controller.set_player(self)
 
     def get_bomb(self):
         return self._bomb_creator.get_bomb()
@@ -381,6 +388,11 @@ class Bomb(MapObject):
             self._is_dead = True
             return Explose(self._explosion_type, coordinates,
                            self._explosion_radius)
+        #collisions = old_map.get_collisions(coordinates)
+        #if any(isinstance(collision, ExplosionBlock)
+        #       for collision in collisions):
+        #    return Explose(self._explosion_type, coordinates,
+        #                   self._explosion_radius)
         return Move(Direction.Stand)
 
 

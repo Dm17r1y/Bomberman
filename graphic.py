@@ -6,14 +6,55 @@ import logic
 import os
 from level_creator import LevelCreator
 from child_classes import *
+import copy
 
 RANDOM_LEVEL_SIZE = 15
 TIMER_DELAY_MILLISECONDS = 30
 BOMBERMAN_LIVES = 3
 
+class Cheat:
+
+    def __init__(self, sequence, effect):
+        self._sequence = sequence
+        self._effect = effect
+        self._progress = 0
+
+    def register_key(self, key):
+        if key == self._sequence[self._progress]:
+            self._progress += 1
+            if self._progress == len(self._sequence):
+                self._progress = 0
+                self._effect()
+        else:
+            self._progress = 0
 
 class GameController(GameController):
-    pass
+
+    def __init__(self, window, cheats):
+        self._save = None
+        self._window = window
+        self._cheats = cheats
+
+    @property
+    def save(self):
+        return copy.deepcopy(self._save)
+
+    def delete_save(self):
+        self._save = None
+
+    def handle_key(self, key):
+
+        class Save:
+
+            def __init__(self, game):
+                self.game = copy.deepcopy(game)
+
+        if key == QtCore.Qt.Key_F5 and self._save is None:
+            game = self._window.game
+            self._save = Save(game)
+
+        for cheat in self._cheats:
+            cheat.register_key(key)
 
 
 class PlayerController(PlayerController):
@@ -49,8 +90,9 @@ class BombermanWindow(QtWidgets.QWidget):
         self.level_number = 0
         self.bomberman_lives = 3
         level = levels[0]
-        width, height = self.initialize_game(level)
+        width, height = self.initialize_new_game(level)
         self.view = BombermanView(self, width * CELL_SIZE, height * CELL_SIZE)
+        self.game_controller = GameController(self)
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.make_turn)
         self.timer.start(TIMER_DELAY_MILLISECONDS)
@@ -77,6 +119,7 @@ class BombermanWindow(QtWidgets.QWidget):
 
     def get_win_window(self):
         self.level_number += 1
+        self.game_controller.delete_save()
         if self.level_number >= len(self.levels):
             reply = QtWidgets.QMessageBox.question(self, 'You win',
                                                    'You passed all levels',
@@ -90,7 +133,7 @@ class BombermanWindow(QtWidgets.QWidget):
                                                    QtWidgets.QMessageBox.No)
             if reply == QtWidgets.QMessageBox.Yes:
                 level = self.levels[self.level_number]
-                self.initialize_game(level)
+                self.initialize_new_game(level)
             else:
                 self.timer.stop()
                 self.close()
@@ -106,12 +149,19 @@ class BombermanWindow(QtWidgets.QWidget):
             if self.bomberman_lives <= 0:
                 self.bomberman_lives = BOMBERMAN_LIVES
                 self.level_number = 0
-            self.initialize_game(self.levels[self.level_number])
+                self.game_controller.delete_save()
+                self.initialize_new_game(self.levels[0])
+            elif self.game_controller.save is not None:
+                self.game = self.game_controller.save.game
+                self.game.player.set_controller(self.player_controller)
+            else:
+                self.initialize_new_game(self.levels[self.level_number])
+
         else:
             self.timer.stop()
             self.close()
 
-    def initialize_game(self, level):
+    def initialize_new_game(self, level):
 
         legend = {
             "#": lambda: (UnbreakableBlock(),),
@@ -136,18 +186,19 @@ class BombermanWindow(QtWidgets.QWidget):
                 level_ = f.read().split('\n')
             game_map, level_width, level_height = \
                 level_creator.create_level(level_)
-        self.controller = PlayerController()
-        player = Player(self.controller)
+        self.player_controller = PlayerController()
+        player = Player(self.player_controller)
         player.set_bomb_type(SimpleBomb)
         game_map.add_map_object(player, Point(CELL_SIZE, CELL_SIZE))
-        self.game = Game(game_map, GameController(), player)
+        self.game = Game(game_map, player)
         return level_width, level_height
 
     def keyPressEvent(self, key_event):
-        self.controller.set_key(key_event.key())
+        self.game_controller.handle_key(key_event.key())
+        self.player_controller.set_key(key_event.key())
 
     def keyReleaseEvent(self, key_event):
-        self.controller.release_key()
+        self.player_controller.release_key()
 
 
 class BombermanView(QtWidgets.QFrame):
@@ -319,6 +370,7 @@ class MainWindow(QtWidgets.QWidget):
         else:
             levels = os.listdir(os.path.join('levels', level))
             levels = [os.path.join('levels', level, name) for name in levels]
+            levels.sort()
             self.window = BombermanWindow(levels)
 
 

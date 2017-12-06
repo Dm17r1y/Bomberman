@@ -42,7 +42,7 @@ class MovementTests(unittest.TestCase):
         self.player = Player(GoRightController())
         self.map = Map()
         self.map.add_map_object(self.player, Point(0, 0))
-        self.game = Game(self.map, EmptyGameController(), self.player)
+        self.game = Game(self.map, self.player)
 
     def test_correct_initialization(self):
         self.assertEqual(self.player, self.game.player)
@@ -78,7 +78,7 @@ class PlayerCollisionTests(unittest.TestCase):
     def setUp(self):
         self.map = Map()
         self.player = Player(GoRightController())
-        self.game = Game(self.map, EmptyGameController(), self.player)
+        self.game = Game(self.map, self.player)
         self.map.add_map_object(self.player, Point(0, 0))
 
     def test_collision_player_and_monster(self):
@@ -120,7 +120,7 @@ class BombAndExplosionTests(unittest.TestCase):
     def setUp(self):
         self.map = Map()
         self.player = Player(PutBombController())
-        self.game = Game(self.map, EmptyGameController(), self.player)
+        self.game = Game(self.map, self.player)
 
     def test_explose_bomb(self):
         bomb = Bomb(1, 5)
@@ -192,7 +192,7 @@ class OtherTests(unittest.TestCase):
     def setUp(self):
         self.map = Map()
         self.player = Player(PutBombController())
-        self.game = Game(self.map, EmptyGameController(), self.player)
+        self.game = Game(self.map, self.player)
 
     def test_apply_bomb(self):
         self.map.add_map_object(self.player, Point(29, 33))
@@ -268,7 +268,7 @@ class TestChildClasses(unittest.TestCase):
     def setUp(self):
         self.map = Map()
         self.player = Player(GoRightController())
-        self.game = Game(self.map, GameController(), self.player)
+        self.game = Game(self.map, self.player)
 
     def test_simple_monster(self):
         monster = child_classes.SimpleMonster()
@@ -294,8 +294,7 @@ class TestChildClasses(unittest.TestCase):
             "# # #",
             "###*#"
         ])
-        self.game = Game(self.map, GameController(),
-                         Player(GoRightController()))
+        self.game = Game(self.map, Player(GoRightController()))
         self.game.make_turn()
         self.assertEqual(child_classes.CleverMonster,
                          type(self.game.map.get_map_objects(
@@ -311,8 +310,7 @@ class TestChildClasses(unittest.TestCase):
         self.map, _, _ = level_creator_.create_level([
             "*     0"
         ])
-        self.game = Game(self.map, GameController(),
-                         Player(GoRightController()))
+        self.game = Game(self.map, Player(GoRightController()))
         self.game.make_turn()
         self.assertEqual(child_classes.CleverMonster,
                          type(self.game.map.get_map_objects(
