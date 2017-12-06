@@ -7,6 +7,7 @@ import os
 from level_creator import LevelCreator
 from child_classes import *
 import copy
+from PyQt5.QtCore import Qt
 
 RANDOM_LEVEL_SIZE = 15
 TIMER_DELAY_MILLISECONDS = 30
@@ -61,19 +62,26 @@ class PlayerController(PlayerController):
 
     def __init__(self):
         self._key = None
+        self._active_keys = [Qt.Key_W, Qt.Key_S, Qt.Key_A, Qt.Key_D,
+                             Qt.Key_Space]
 
     def select_action(self):
-        bomb = self._player.get_bomb()
         actions = {
-            QtCore.Qt.Key_W: logic.Move(Direction.Down),
-            QtCore.Qt.Key_S: logic.Move(Direction.Up),
-            QtCore.Qt.Key_A: logic.Move(Direction.Left),
-            QtCore.Qt.Key_D: logic.Move(Direction.Right),
-            QtCore.Qt.Key_E: logic.PutBomb(bomb)
+            self._active_keys[0]: logic.Move(Direction.Down),
+            self._active_keys[1]: logic.Move(Direction.Up),
+            self._active_keys[2]: logic.Move(Direction.Left),
+            self._active_keys[3]: logic.Move(Direction.Right),
+            self._active_keys[4]: logic.PutBomb(self._player.get_bomb())
         }
         if self._key and self._key in actions:
             return actions[self._key]
         return logic.Move(Direction.Stand)
+
+    def set_active_keys(self, new_keys):
+        if len(new_keys) != 5:
+            raise Exception("len of new keys must be 5 but was {}"
+                            .format(len(new_keys)))
+        self._active_keys = new_keys
 
     def set_key(self, key):
         self._key = key
@@ -92,11 +100,51 @@ class BombermanWindow(QtWidgets.QWidget):
         level = levels[0]
         width, height = self.initialize_new_game(level)
         self.view = BombermanView(self, width * CELL_SIZE, height * CELL_SIZE)
-        self.game_controller = GameController(self)
+        cheats = self.generate_cheats()
+        self.game_controller = GameController(self, cheats)
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.make_turn)
         self.timer.start(TIMER_DELAY_MILLISECONDS)
         self.show()
+
+    def generate_cheats(self):
+
+        cheats = []
+
+        def add_immune_buff():
+            self.game.player.add_buff(ImmuneBuff())
+
+        def add_long_explon_buff():
+            self.game.player.add_buff(LongRangeExplosionBuff())
+
+        def add_high_explosion_buff():
+            self.game.player.add_buff(LongRangeExplosionBuff())
+
+        def win_level():
+            self.win_flag = True
+
+        def change_buttons_like_vim():
+            new_keys = [Qt.Key_K, Qt.Key_J, Qt.Key_H, Qt.Key_L, Qt.Key_Space]
+            self.player_controller.set_active_keys(new_keys)
+
+        cheats.append(Cheat([Qt.Key_I, Qt.Key_M, Qt.Key_M, Qt.Key_U,
+                             Qt.Key_N, Qt.Key_E], add_immune_buff))
+        cheats.append(Cheat([Qt.Key_L, Qt.Key_O, Qt.Key_N, Qt.Key_G,
+                             Qt.Key_E, Qt.Key_X, Qt.Key_P, Qt.Key_L,
+                             Qt.Key_O, Qt.Key_S, Qt.Key_I, Qt.Key_O,
+                             Qt.Key_N], add_long_explon_buff))
+        cheats.append(Cheat([Qt.Key_H, Qt.Key_I, Qt.Key_G, Qt.Key_H,
+                             Qt.Key_E, Qt.Key_X, Qt.Key_P, Qt.Key_L,
+                             Qt.Key_O, Qt.Key_S, Qt.Key_I, Qt.Key_O,
+                             Qt.Key_N], add_high_explosion_buff))
+        cheats.append(Cheat([Qt.Key_W, Qt.Key_I, Qt.Key_N, Qt.Key_L,
+                             Qt.Key_E, Qt.Key_V, Qt.Key_E, Qt.Key_L],
+                            win_level))
+        cheats.append(Cheat([Qt.Key_V, Qt.Key_I, Qt.Key_M, Qt.Key_H,
+                             Qt.Key_J, Qt.Key_K, Qt.Key_L],
+                            change_buttons_like_vim))
+        return cheats
+
 
     def closeEvent(self, event):
         self.timer = None
@@ -108,7 +156,7 @@ class BombermanWindow(QtWidgets.QWidget):
 
         if self.is_player_lose():
             self.get_lose_window()
-        if self.is_player_win():
+        if self.is_player_win() or self.win_flag:
             self.get_win_window()
 
     def is_player_win(self):
@@ -174,6 +222,8 @@ class BombermanWindow(QtWidgets.QWidget):
             "S": lambda: (StrongMonster(),),
             "F": lambda: (FortifiedBlock(),)
         }
+
+        self.win_flag = False
 
         if level == "Random":
             game_map = LevelCreator.create_random_level(RANDOM_LEVEL_SIZE,
