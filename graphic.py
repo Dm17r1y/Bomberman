@@ -8,6 +8,7 @@ from level_creator import LevelCreator
 from child_classes import *
 import copy
 from PyQt5.QtCore import Qt
+from controller import *
 
 RANDOM_LEVEL_SIZE = 15
 TIMER_DELAY_MILLISECONDS = 30
@@ -120,7 +121,7 @@ class BombermanWindow(QtWidgets.QWidget):
             self.game.player.add_buff(LongRangeExplosionBuff())
 
         def add_high_explosion_buff():
-            self.game.player.add_buff(LongRangeExplosionBuff())
+            self.game.player.set_bomb_type(HighPowerBomb)
 
         def win_level():
             self.win_flag = True
