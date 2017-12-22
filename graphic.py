@@ -130,6 +130,9 @@ class BombermanWindow(QtWidgets.QWidget):
             new_keys = [Qt.Key_K, Qt.Key_J, Qt.Key_H, Qt.Key_L, Qt.Key_Space]
             self.player_controller.set_active_keys(new_keys)
 
+        def add_walking_to_the_wall():
+            self.game.player.set_ghost_mode(True)
+
         cheats.append(Cheat([Qt.Key_I, Qt.Key_M, Qt.Key_M, Qt.Key_U,
                              Qt.Key_N, Qt.Key_E], add_immune_buff))
         cheats.append(Cheat([Qt.Key_L, Qt.Key_O, Qt.Key_N, Qt.Key_G,
@@ -146,6 +149,9 @@ class BombermanWindow(QtWidgets.QWidget):
         cheats.append(Cheat([Qt.Key_V, Qt.Key_I, Qt.Key_M, Qt.Key_H,
                              Qt.Key_J, Qt.Key_K, Qt.Key_L],
                             change_buttons_like_vim))
+        cheats.append(Cheat([Qt.Key_G, Qt.Key_H, Qt.Key_O, Qt.Key_S,
+                             Qt.Key_T, Qt.Key_M, Qt.Key_O, Qt.Key_D,
+                             Qt.Key_E], add_walking_to_the_wall))
         return cheats
 
     def closeEvent(self, event):

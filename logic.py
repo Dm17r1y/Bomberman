@@ -313,6 +313,10 @@ class Player(MapObject):
         self._bomb_creator = BombCreator()
         self._buffs = []
         self.immune = False
+        self._ghost_mode = False
+
+    def set_ghost_mode(self, value):
+        self._ghost_mode = value
 
     def set_controller(self, controller):
         self._controller = controller
@@ -345,6 +349,8 @@ class Player(MapObject):
         return self._controller.select_action()
 
     def can_move(self, collisions, old_collisions):
+        if self._ghost_mode:
+            return True
         object_types = [Block, Bomb]
         return all(not isinstance(object_, type_)
                    for object_ in collisions
