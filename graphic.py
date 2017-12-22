@@ -14,6 +14,8 @@ RANDOM_LEVEL_SIZE = 15
 TIMER_DELAY_MILLISECONDS = 30
 BOMBERMAN_LIVES = 3
 
+cell_size_in_pixels = 16
+
 
 class Cheat:
 
@@ -102,7 +104,8 @@ class BombermanWindow(QtWidgets.QWidget):
         self.bomberman_lives = 3
         level = levels[0]
         width, height = self.initialize_new_game(level)
-        self.view = BombermanView(self, width * CELL_SIZE, height * CELL_SIZE)
+        self.view = BombermanView(self, width * cell_size_in_pixels,
+                                  height * cell_size_in_pixels)
         cheats = self.generate_cheats()
         self.game_controller = GameController(self, cheats)
         self.timer = QtCore.QTimer()
@@ -275,7 +278,7 @@ class BombermanView(QtWidgets.QFrame):
         class Image:
             def __init__(self, path_to_image):
                 self._image = QtGui.QPixmap(path_to_image) \
-                    .scaled(CELL_SIZE, CELL_SIZE)
+                    .scaled(cell_size_in_pixels, cell_size_in_pixels)
 
             @property
             def image(self):
@@ -357,8 +360,8 @@ class BombermanView(QtWidgets.QFrame):
         self.draw_game_objects(painter)
 
     def draw_background(self, painter):
-        background_rect = QtCore.QRect(0, 0, self.width_ * CELL_SIZE,
-                                       self.height_ * CELL_SIZE)
+        background_rect = QtCore.QRect(0, 0, self.width_ * cell_size_in_pixels,
+                                       self.height_ * cell_size_in_pixels)
         painter.fillRect(background_rect, QtCore.Qt.cyan)
 
     def draw_game_objects(self, painter):
@@ -366,7 +369,10 @@ class BombermanView(QtWidgets.QFrame):
         for animation in self.animations:
             image = self.get_image(animation, self.animations)
             location = animation.location + animation.direction.value
-            point = QtCore.QPoint(location.x, location.y)
+            point = QtCore.QPoint(
+                location.x * (cell_size_in_pixels / CELL_SIZE),
+                location.y * (cell_size_in_pixels / CELL_SIZE)
+            )
             painter.drawPixmap(point, image.image)
 
     def get_image(self, animation, animations):
@@ -433,7 +439,11 @@ class MainWindow(QtWidgets.QWidget):
 
 
 def main():
+    global cell_size_in_pixels
     app = QtWidgets.QApplication(sys.argv)
+    resolution =  app.desktop().width() * app.desktop().height()
+    if resolution >= 1920 * 1080:
+        cell_size_in_pixels = 32
     main_window = MainWindow()
     sys.exit(app.exec_())
 
