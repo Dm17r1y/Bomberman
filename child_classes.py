@@ -47,6 +47,11 @@ class CleverMonster(SimpleMonster):
 
     VISION_RANGE = 10
 
+    def __init__(self):
+        super().__init__()
+        self._next_point = None
+        self._player_position = None
+
     def in_vision_range(self, my_coordinates, object_coordinates):
         return abs(my_coordinates.x - object_coordinates.x) < \
                self.VISION_RANGE * CELL_SIZE and \
@@ -54,6 +59,8 @@ class CleverMonster(SimpleMonster):
                self.VISION_RANGE * CELL_SIZE
 
     def move(self, coordinates: 'Point', old_map: 'Map'):
+        if self._next_point != None and self._next_point != coordinates:
+            return self._switch_action(self._next_point - coordinates)
         visited = set()
         rounded_coordinates = Map.round_point(coordinates, CELL_SIZE)
         queue = Queue()
@@ -61,6 +68,8 @@ class CleverMonster(SimpleMonster):
         track = {}
         player_position = None
         while not queue.empty():
+            if player_position != None:
+                break
             node = queue.get()
             for direction in (Direction.Down, Direction.Up,
                               Direction.Left, Direction.Right):
@@ -80,12 +89,25 @@ class CleverMonster(SimpleMonster):
                         player_position = new_node
                         break
         if player_position is None:
+            self._next_point = None
             return Move(Direction.Stand)
         else:
             next_point = player_position
+            points = []
             while track[next_point] != rounded_coordinates:
                 next_point = track[next_point]
+                points.append(next_point)
+            # print('-------------------')
+            # for point in points:
+            #     print(point, end="; ")
+            # print()
+            # print("my coordinates", coordinates)
+            # print("next point", next_point)
+            # print('-------------------')
+
             direction = next_point - coordinates
+            self._next_point = next_point
+            self._player_position = player_position
             return self._switch_action(direction)
 
     def _switch_action(self, direction):

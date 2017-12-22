@@ -318,6 +318,22 @@ class TestChildClasses(unittest.TestCase):
                              Point(CELL_SIZE*6 - 1, 0)
                          )[0]))
 
+    def test_clever_monster_3(self):
+        legend = {
+            '0': lambda: (child_classes.CleverMonster(),)
+        }
+        level_creator_ = level_creator.LevelCreator(legend)
+        player = Player(GoRightController())
+        self.map.add_map_object(player, Point(CELL_SIZE // 2, 0))
+        self.map.add_map_object(child_classes.CleverMonster(),
+                                Point(CELL_SIZE * 4, 0))
+        self.game = Game(self.map, player)
+        self.game.make_turn()
+        self.assertEqual([child_classes.CleverMonster],
+                         [type(obj) for obj in self.game.map.get_map_objects(
+                             Point(CELL_SIZE*4 - 1, 0)
+                         )])
+
     def test_new_monsters_kill_player(self):
         self.map.add_map_object(self.player, Point(0, 0))
         self.map.add_map_object(child_classes.SimpleMonster(), Point(0, 0))
