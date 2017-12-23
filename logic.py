@@ -253,7 +253,7 @@ class Explose:
                               i * direction.value.x * CELL_SIZE,
                               coordinates.y +
                               i * direction.value.y * CELL_SIZE)
-                explosion = self._explosion_type(EXPLOSION_LIVE)
+                explosion = self._explosion_type(EXPLOSION_LIVE, direction)
                 animations.append(Animation(explosion, point, Direction.Stand))
                 game_map.add_map_object(explosion, point)
                 collisions = old_map.get_collisions(point)
@@ -387,6 +387,9 @@ class Bomb(MapObject):
         self._explosion_type = ExplosionBlock
 
     def move(self, coordinates: 'Point', old_map: 'Map'):
+        if ExplosionBlock in map(type, old_map.get_collisions(coordinates)):
+            return Explose(self._explosion_type, coordinates,
+                           self._explosion_radius)
         self._tick_delay -= 1
         if self._tick_delay == 0:
             self._is_dead = True
@@ -397,9 +400,10 @@ class Bomb(MapObject):
 
 class ExplosionBlock(MapObject):
 
-    def __init__(self, life_time: int):
+    def __init__(self, life_time: int, direction=Direction.Stand):
         super().__init__()
         self._life_time = life_time
+        self.direction = direction
 
     def solve_collision(self, other_objects):
         self._life_time -= 1

@@ -328,31 +328,37 @@ class BombermanView(QtWidgets.QFrame):
         self.explosion_horizontal_image = explosion_horizontal_image
         self.explosion_central_image = explosion_central_image
 
+
     def set_animations(self, animations):
-        priority = {
-            Player: 0,
-            SimpleMonster: 1,
-            StrongMonster: 1,
-            CleverMonster: 1,
-            Block: 1,
-            UnbreakableBlock: 1,
-            FortifiedBlock: 1,
-            SimpleBomb: 1,
-            HighPowerBomb: 1,
-            ExplosionBlock: 2,
-            HighPoweredExplosion: 2,
-            DestroyableBlock: 3,
-            Bonus: 4,
-            ImmuneBonus: 4,
-            ImmuneBuff: 4,
-            LongRangeExplosionBuff: 4,
-            LongExplosionBonus: 4,
-            HighBombBonus: 4
-        }
+
+        def get_priority(animation):
+            priority = {
+                Player: 0,
+                SimpleMonster: 1,
+                StrongMonster: 1,
+                CleverMonster: 1,
+                Block: 1,
+                UnbreakableBlock: 1,
+                FortifiedBlock: 1,
+                SimpleBomb: 1,
+                HighPowerBomb: 1,
+                ExplosionBlock: 2,
+                HighPoweredExplosion: 2,
+                DestroyableBlock: 3,
+                Bonus: 4,
+                ImmuneBonus: 4,
+                ImmuneBuff: 4,
+                LongRangeExplosionBuff: 4,
+                LongExplosionBonus: 4,
+                HighBombBonus: 4
+            }
+            if isinstance(animation.object, ExplosionBlock):
+                return 1.5 if animation.object.direction == Direction.Stand \
+                           else 2
+            return priority[type(animation.object)]
+
         self.animations = animations
-        self.animations.sort(key=lambda animation: priority[
-            type(animation.object)
-        ], reverse=True)
+        self.animations.sort(key=get_priority ,reverse=True)
 
     def paintEvent(self, paint_event):
         painter = QtGui.QPainter(self)
@@ -385,31 +391,24 @@ class BombermanView(QtWidgets.QFrame):
         }
 
         if isinstance(animation.object, logic.ExplosionBlock):
-            animation_points = {anim.location for anim in animations
-                                if isinstance(anim.object,
-                                              logic.ExplosionBlock)}
-            neighboring_explosions = []
-            for direction in (Direction.Left, Direction.Right,
-                              Direction.Up, Direction.Down):
-                if animation.location + (direction.value * CELL_SIZE)\
-                        in animation_points:
-                    neighboring_explosions.append(direction)
-
-            if len(neighboring_explosions) == 1:
-                return self.explosion_images[
-                    opposite[neighboring_explosions[0]]
-                ]
-            elif len(neighboring_explosions) == 2:
-                if set(neighboring_explosions) == \
-                        {Direction.Up, Direction.Down}:
-                    return self.explosion_vertical_image
-                elif set(neighboring_explosions) == \
-                        {Direction.Left, Direction.Right}:
-                    return self.explosion_horizontal_image
-            return self.explosion_central_image
+            return self.get_explosion_image(animation.object,
+                                            animation.location, animations)
         else:
             return self.images[type(animation.object)]
 
+    def get_explosion_image(self, explosion, coordinates, animations):
+        if explosion.direction == Direction.Stand:
+            return self.explosion_central_image
+        elif coordinates + explosion.direction.value * CELL_SIZE in animations:
+            images = {
+                Direction.Right: self.explosion_horizontal_image,
+                Direction.Left: self.explosion_horizontal_image,
+                Direction.Up: self.explosion_vertical_image,
+                Direction.Down: self.explosion_vertical_image
+            }
+            return images[explosion.direction]
+        else:
+            return self.explosion_images[explosion.direction]
 
 class MainWindow(QtWidgets.QWidget):
 
