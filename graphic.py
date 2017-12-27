@@ -404,14 +404,14 @@ class StateSwitcher:
 
     def _is_final_animation(self, animation, animations):
         location = animation.location + CELL_SIZE * animation.direction.value
+        direction = animation.object.direction.value
         points = {anim.location
                   for anim in animations
                   if isinstance(anim.object, ExplosionBlock)}
-        return location + animation.object.direction.value * CELL_SIZE \
-               not in points
+        return location + direction * CELL_SIZE not in points
+
 
 class BombermanView(QtWidgets.QFrame):
-
 
     def __init__(self, window, width, height):
         QtWidgets.QFrame.__init__(self, window)
@@ -577,7 +577,6 @@ class BombermanView(QtWidgets.QFrame):
         }
         self.state_switcher = StateSwitcher(draw_animations)
 
-
     def set_animations(self, animations):
 
         def get_priority(animation):
@@ -607,7 +606,7 @@ class BombermanView(QtWidgets.QFrame):
             return priority[type(animation.object)]
 
         self.animations = animations
-        self.animations.sort(key=get_priority ,reverse=True)
+        self.animations.sort(key=get_priority, reverse=True)
 
     def paintEvent(self, paint_event):
         painter = QtGui.QPainter(self)
@@ -664,7 +663,7 @@ class MainWindow(QtWidgets.QWidget):
 def main():
     global cell_size_in_pixels
     app = QtWidgets.QApplication(sys.argv)
-    resolution =  app.desktop().width() * app.desktop().height()
+    resolution = app.desktop().width() * app.desktop().height()
     if resolution >= 1920 * 1080:
         cell_size_in_pixels = 32
     main_window = MainWindow()

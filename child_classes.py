@@ -59,7 +59,7 @@ class CleverMonster(SimpleMonster):
                self.VISION_RANGE * CELL_SIZE
 
     def move(self, coordinates: 'Point', old_map: 'Map'):
-        if self._next_point != None and self._next_point != coordinates:
+        if self._next_point is not None and self._next_point != coordinates:
             return self._switch_action(self._next_point - coordinates)
         visited = set()
         rounded_coordinates = Map.round_point(coordinates, CELL_SIZE)
@@ -68,7 +68,7 @@ class CleverMonster(SimpleMonster):
         track = {}
         player_position = None
         while not queue.empty():
-            if player_position != None:
+            if player_position is not None:
                 break
             node = queue.get()
             for direction in (Direction.Down, Direction.Up,
@@ -97,13 +97,6 @@ class CleverMonster(SimpleMonster):
             while track[next_point] != rounded_coordinates:
                 next_point = track[next_point]
                 points.append(next_point)
-            # print('-------------------')
-            # for point in points:
-            #     print(point, end="; ")
-            # print()
-            # print("my coordinates", coordinates)
-            # print("next point", next_point)
-            # print('-------------------')
 
             direction = next_point - coordinates
             self._next_point = next_point
