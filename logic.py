@@ -403,7 +403,15 @@ class ExplosionBlock(MapObject):
     def __init__(self, life_time: int, direction=Direction.Stand):
         super().__init__()
         self._life_time = life_time
-        self.direction = direction
+        self._direction = direction
+
+    @property
+    def life_time(self):
+        return self._life_time
+
+    @property
+    def direction(self):
+        return self._direction
 
     def solve_collision(self, other_objects):
         self._life_time -= 1

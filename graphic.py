@@ -13,6 +13,7 @@ from controller import *
 RANDOM_LEVEL_SIZE = 15
 TIMER_DELAY_MILLISECONDS = 30
 BOMBERMAN_LIVES = 3
+ANIMATION_CONTINUATION_IN_TICKS = 4
 
 cell_size_in_pixels = 16
 
@@ -153,8 +154,7 @@ class BombermanWindow(QtWidgets.QWidget):
                              Qt.Key_J, Qt.Key_K, Qt.Key_L],
                             change_buttons_like_vim))
         cheats.append(Cheat([Qt.Key_G, Qt.Key_H, Qt.Key_O, Qt.Key_S,
-                             Qt.Key_T, Qt.Key_M, Qt.Key_O, Qt.Key_D,
-                             Qt.Key_E], add_walking_to_the_wall))
+                             Qt.Key_T], add_walking_to_the_wall))
         return cheats
 
     def closeEvent(self, event):
@@ -262,7 +262,156 @@ class BombermanWindow(QtWidgets.QWidget):
         self.player_controller.release_key()
 
 
+class Image:
+    def __init__(self, path_to_image):
+        self._image = QtGui.QPixmap(path_to_image) \
+            .scaled(cell_size_in_pixels, cell_size_in_pixels)
+
+    @property
+    def image(self):
+        return self._image
+
+
+class DrawAnimation:
+    def __init__(self, image):
+        self._image = image
+
+    def get_animation_image(self, _, __):
+        return self._image
+
+
+class ActorDrawAnimation:
+    def __init__(self, go_left_images, go_right_images, go_up_images,
+                 go_down_images, stand_image, die_images):
+        self._images = {
+            Direction.Down: go_down_images,
+            Direction.Up: go_up_images,
+            Direction.Right: go_right_images,
+            Direction.Left: go_left_images,
+        }
+        self.stand_image = stand_image
+        self._die_images = die_images
+
+    def get_animation_image(self, animation, animation_state):
+        state = animation_state.state // ANIMATION_CONTINUATION_IN_TICKS
+        if animation.direction == Direction.Stand:
+            return self.stand_image
+        return self._images[animation.direction][
+            state % len(self._images[animation.direction])
+        ]
+
+    def get_dead_animation(self):
+        return DeadAnimations(self._die_images)
+
+
+class ExplosionDrawAnimation:
+    def __init__(self, left_images, right_images, up_images, down_images,
+                 central_images, vertical_images, horizontal_images):
+        self._final_images = {
+            Direction.Left: left_images,
+            Direction.Right: right_images,
+            Direction.Up: up_images,
+            Direction.Down: down_images,
+        }
+        self._images = {
+            Direction.Left: horizontal_images,
+            Direction.Right: horizontal_images,
+            Direction.Up: vertical_images,
+            Direction.Down: vertical_images,
+        }
+        self._central_images = central_images
+
+    def get_animation_image(self, animation, animation_state):
+        state = animation_state.state
+        is_final_animation = animation_state.is_final_animation
+        direction = animation.object.direction
+        if direction == Direction.Stand:
+            return self._central_images[state % len(self._central_images)]
+        elif is_final_animation:
+            return self._final_images[direction][
+                state % len(self._final_images[direction])
+            ]
+        else:
+            return self._images[direction][state %
+                                           len(self._images[direction])]
+
+
+class DeadAnimations:
+    def __init__(self, die_images):
+        self._die_images = die_images
+
+    def get_animation_image(self, animation_state):
+        return self._die_images[animation_state.state % len(self._die_images)]
+
+
+class StateSwitcher:
+
+    class AnimationState:
+        def __init__(self, state, previous_state, previous_direction,
+                     is_final_animation=False):
+            self.state = state
+            self.previous_state = previous_state
+            self.previous_direction = previous_direction
+            self.is_final_animation = is_final_animation
+
+    class State:
+        def __init__(self):
+            self.state = 0
+            self.previous_state = 0
+            self.previous_direction = Direction.Down
+
+        def switch_state(self, animation):
+            self.previous_state = self.state
+            if animation.direction == self.previous_direction:
+                self.state += 1
+            else:
+                self.state = 0
+                self.previous_direction = animation.direction
+            return StateSwitcher.AnimationState(
+                self.state, self.previous_state, self.previous_direction
+            )
+
+    class ExplosionState:
+        def __init__(self, state_count, is_final_animation):
+            self.state_counts = state_count
+            self.is_final_animation = is_final_animation
+
+        def switch_state(self, animation):
+            state = int(animation.object.life_time / EXPLOSION_LIVE *
+                        self.state_counts)
+            animation = StateSwitcher.AnimationState(
+                state, 0, Direction.Stand, self.is_final_animation
+            )
+            return animation
+
+    def __init__(self, draw_animations):
+        self.states = {}
+        self.draw_animations = draw_animations
+
+    def get_animation_image(self, animation, animations):
+        if animation.object not in self.states:
+            if isinstance(animation.object, ExplosionBlock):
+                self.states[animation.object] = \
+                    StateSwitcher.ExplosionState(4, self._is_final_animation(
+                        animation, animations
+                    ))
+            else:
+                self.states[animation.object] = \
+                    StateSwitcher.State()
+        state = self.states[animation.object].switch_state(animation)
+        return self.draw_animations[type(animation.object)] \
+            .get_animation_image(animation, state)
+
+    def _is_final_animation(self, animation, animations):
+        location = animation.location + CELL_SIZE * animation.direction.value
+        points = {anim.location
+                  for anim in animations
+                  if isinstance(anim.object, ExplosionBlock)}
+        return location + animation.object.direction.value * CELL_SIZE \
+               not in points
+
 class BombermanView(QtWidgets.QFrame):
+
 
     def __init__(self, window, width, height):
         QtWidgets.QFrame.__init__(self, window)
@@ -275,58 +424,158 @@ class BombermanView(QtWidgets.QFrame):
 
     def load_images(self):
 
-        class Image:
-            def __init__(self, path_to_image):
-                self._image = QtGui.QPixmap(path_to_image) \
-                    .scaled(cell_size_in_pixels, cell_size_in_pixels)
+        def get_image(name):
+            return Image(os.path.join("images", name))
 
-            @property
-            def image(self):
-                return self._image
+        unbreakable_block_image = get_image("unbreakable_block.png")
+        destroyable_block_image = get_image("destroyable_block.png")
+        fortified_block_image = get_image("fortified_block.png")
+        bomb_image = get_image("bomb.png")
+        high_bomb_bonus_image = get_image("high_bomb_bonus.png")
+        immune_bonus_image = get_image("immune_bonus.png")
+        long_explosion_bonus_image = get_image("long_explosion_bonus.png")
 
-        unbreakable_block_image = Image("images/unbreakable_block.png")
-        destroyable_block_image = Image("images/destroyable_block.png")
-        fortified_block_image = Image("images/fortified_block.png")
-        player_image = Image("images/player.png")
-        bomb_image = Image("images/bomb.png")
-        explosion_central_image = Image("images/explosion_center.png")
-        explosion_right_image = Image("images/explosion_right.png")
-        explosion_left_image = Image("images/explosion_left.png")
-        explosion_up_image = Image("images/explosion_up.png")
-        explosion_down_image = Image("images/explosion_down.png")
-        explosion_vertical_image = Image("images/explosion_vertical.png")
-        explosion_horizontal_image = Image("images/explosion_horizontal.png")
-        simple_monster_image = Image("images/simple_monster.png")
-        clever_monster_image = Image("images/clever_monster.png")
-        strong_monster_image = Image("images/strong_monster.png")
-        high_bomb_bonus_image = Image("images/high_bomb_bonus.png")
-        immune_bonus_image = Image("images/immune_bonus.png")
-        long_explosion_bonus_image = Image("images/long_explosion_bonus.png")
+        player_up_images = [get_image("player_up_0.png"),
+                            get_image("player_up_1.png"),
+                            get_image("player_up_2.png")]
+        player_down_images = [get_image("player_down_0.png"),
+                              get_image("player_down_1.png"),
+                              get_image("player_down_2.png")]
+        player_left_images = [get_image("player_left_0.png"),
+                              get_image("player_left_1.png"),
+                              get_image("player_left_2.png")]
+        player_right_images = [get_image("player_right_0.png"),
+                               get_image("player_right_1.png"),
+                               get_image("player_right_2.png")]
+        player_die_images = [get_image("player_die_0.png"),
+                             get_image("player_die_1.png"),
+                             get_image("player_die_2.png"),
+                             get_image("player_die_3.png"),
+                             get_image("player_die_4.png"),
+                             get_image("player_die_5.png")]
+        player_stand_image = get_image("player_down_0.png")
 
-        self.images = {
-            UnbreakableBlock: unbreakable_block_image,
-            Player: player_image,
-            SimpleBomb: bomb_image,
-            HighPowerBomb: bomb_image,
-            SimpleMonster: simple_monster_image,
-            CleverMonster: clever_monster_image,
-            StrongMonster: strong_monster_image,
-            HighBombBonus: high_bomb_bonus_image,
-            ImmuneBonus: immune_bonus_image,
-            LongExplosionBonus: long_explosion_bonus_image,
-            DestroyableBlock: destroyable_block_image,
-            FortifiedBlock: fortified_block_image
+        simple_monster_left_images = [get_image("simple_monster_0.png"),
+                                      get_image("simple_monster_1.png"),
+                                      get_image("simple_monster_2.png")]
+        simple_monster_right_images = [get_image("simple_monster_3.png"),
+                                       get_image("simple_monster_4.png"),
+                                       get_image("simple_monster_5.png")]
+        simple_monster_down_images = [get_image("simple_monster_0.png"),
+                                      get_image("simple_monster_1.png"),
+                                      get_image("simple_monster_2.png")]
+        simple_monster_up_images = [get_image("simple_monster_3.png"),
+                                    get_image("simple_monster_4.png"),
+                                    get_image("simple_monster_5.png")]
+        simple_monster_die_images = [get_image("simple_monster_die_0.png"),
+                                     get_image("simple_monster_die_1.png"),
+                                     get_image("simple_monster_die_2.png"),
+                                     get_image("simple_monster_die_3.png"),
+                                     get_image("simple_monster_die_4.png")]
+        simple_monster_stand_image = get_image("simple_monster_0.png")
+
+        clever_monster_up_images = [get_image("clever_monster_0.png"),
+                                    get_image("clever_monster_1.png"),
+                                    get_image("clever_monster_6.png")]
+        clever_monster_down_images = [get_image("clever_monster_2.png"),
+                                      get_image("clever_monster_3.png"),
+                                      get_image("clever_monster_4.png")]
+        clever_monster_left_images = [get_image("clever_monster_0.png"),
+                                      get_image("clever_monster_1.png"),
+                                      get_image("clever_monster_6.png")]
+        clever_monster_right_images = [get_image("clever_monster_2.png"),
+                                       get_image("clever_monster_3.png"),
+                                       get_image("clever_monster_4.png")]
+        clever_monster_die_images = [get_image("clever_monster_die.png")]
+        clever_monster_stand_image = get_image("clever_monster_0.png")
+
+        strong_monster_up_images = [get_image("strong_monster_0.png"),
+                                    get_image("strong_monster_1.png"),
+                                    get_image("strong_monster_2.png")]
+        strong_monster_down_images = [get_image("strong_monster_3.png"),
+                                      get_image("strong_monster_4.png"),
+                                      get_image("strong_monster_5.png")]
+        strong_monster_left_images = [get_image("strong_monster_0.png"),
+                                      get_image("strong_monster_1.png"),
+                                      get_image("strong_monster_2.png")]
+        strong_monster_right_images = [get_image("strong_monster_3.png"),
+                                       get_image("strong_monster_4.png"),
+                                       get_image("strong_monster_5.png")]
+        strong_monster_die_images = [get_image("strong_monster_die.png")]
+        strong_monster_stand_image = get_image("strong_monster_0.png")
+
+        explosion_up_images = [get_image("explosion_up_2.png"),
+                               get_image("explosion_up_1.png"),
+                               get_image("explosion_up_0.png")]
+        explosion_down_images = [get_image("explosion_down_2.png"),
+                                 get_image("explosion_down_1.png"),
+                                 get_image("explosion_down_0.png")]
+        explosion_left_images = [get_image("explosion_left_2.png"),
+                                 get_image("explosion_left_1.png"),
+                                 get_image("explosion_left_0.png")]
+        explosion_right_images = [get_image("explosion_right_2.png"),
+                                  get_image("explosion_right_1.png"),
+                                  get_image("explosion_right_0.png")]
+        explosion_central_images = [get_image("explosion_center_2.png"),
+                                    get_image("explosion_center_1.png"),
+                                    get_image("explosion_center_0.png")]
+        explosion_vertical_images = [get_image("explosion_vertical_2.png"),
+                                     get_image("explosion_vertical_1.png"),
+                                     get_image("explosion_vertical_0.png")]
+        explosion_horizontal_images = [get_image("explosion_horizontal_2.png"),
+                                       get_image("explosion_horizontal_1.png"),
+                                       get_image("explosion_horizontal_0.png")]
+
+        draw_animations = {
+            UnbreakableBlock: DrawAnimation(unbreakable_block_image),
+            DestroyableBlock: DrawAnimation(destroyable_block_image),
+            FortifiedBlock: DrawAnimation(fortified_block_image),
+            SimpleBomb: DrawAnimation(bomb_image),
+            HighPowerBomb: DrawAnimation(bomb_image),
+            HighBombBonus: DrawAnimation(high_bomb_bonus_image),
+            ImmuneBonus: DrawAnimation(immune_bonus_image),
+            LongExplosionBonus: DrawAnimation(long_explosion_bonus_image),
+            Player: ActorDrawAnimation(player_left_images, player_right_images,
+                                       player_down_images, player_up_images,
+                                       player_stand_image, player_die_images),
+            SimpleMonster: ActorDrawAnimation(simple_monster_left_images,
+                                              simple_monster_right_images,
+                                              simple_monster_up_images,
+                                              simple_monster_down_images,
+                                              simple_monster_stand_image,
+                                              simple_monster_die_images),
+            CleverMonster: ActorDrawAnimation(clever_monster_left_images,
+                                              clever_monster_right_images,
+                                              clever_monster_up_images,
+                                              clever_monster_down_images,
+                                              clever_monster_stand_image,
+                                              clever_monster_die_images),
+            StrongMonster: ActorDrawAnimation(strong_monster_left_images,
+                                              strong_monster_right_images,
+                                              strong_monster_up_images,
+                                              strong_monster_down_images,
+                                              strong_monster_stand_image,
+                                              strong_monster_die_images),
+            ExplosionBlock: ExplosionDrawAnimation(
+                explosion_left_images,
+                explosion_right_images,
+                explosion_down_images,
+                explosion_up_images,
+                explosion_central_images,
+                explosion_vertical_images,
+                explosion_horizontal_images
+            ),
+            HighPoweredExplosion: ExplosionDrawAnimation(
+                explosion_left_images,
+                explosion_right_images,
+                explosion_down_images,
+                explosion_up_images,
+                explosion_central_images,
+                explosion_vertical_images,
+                explosion_horizontal_images
+            )
         }
-
-        self.explosion_images = {
-            Direction.Up: explosion_down_image,
-            Direction.Down: explosion_up_image,
-            Direction.Left: explosion_left_image,
-            Direction.Right: explosion_right_image
-        }
-        self.explosion_vertical_image = explosion_vertical_image
-        self.explosion_horizontal_image = explosion_horizontal_image
-        self.explosion_central_image = explosion_central_image
+        self.state_switcher = StateSwitcher(draw_animations)
 
 
     def set_animations(self, animations):
@@ -382,33 +631,8 @@ class BombermanView(QtWidgets.QFrame):
             painter.drawPixmap(point, image.image)
 
     def get_image(self, animation, animations):
+        return self.state_switcher.get_animation_image(animation, animations)
 
-        opposite = {
-            Direction.Left: Direction.Right,
-            Direction.Right: Direction.Left,
-            Direction.Up: Direction.Down,
-            Direction.Down: Direction.Up
-        }
-
-        if isinstance(animation.object, logic.ExplosionBlock):
-            return self.get_explosion_image(animation.object,
-                                            animation.location, animations)
-        else:
-            return self.images[type(animation.object)]
-
-    def get_explosion_image(self, explosion, coordinates, animations):
-        if explosion.direction == Direction.Stand:
-            return self.explosion_central_image
-        elif coordinates + explosion.direction.value * CELL_SIZE in animations:
-            images = {
-                Direction.Right: self.explosion_horizontal_image,
-                Direction.Left: self.explosion_horizontal_image,
-                Direction.Up: self.explosion_vertical_image,
-                Direction.Down: self.explosion_vertical_image
-            }
-            return images[explosion.direction]
-        else:
-            return self.explosion_images[explosion.direction]
 
 class MainWindow(QtWidgets.QWidget):
 
